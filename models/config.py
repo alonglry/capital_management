@@ -156,9 +156,13 @@ class CapitalManagementConfig:
     atr_multiplier: float = 1.5
 
     heat_policy: str = "reduce"  # 'reduce' or 'reject'
-    correlation_fallback_policy: str = "assume_zero_correlation"  # 'reject', 'ignore_module', 'assume_max_correlation', 'assume_zero_correlation'
+    correlation_fallback_policy: str = "reject"  # 'reject', 'repair', 'assume_zero'
+    missing_correlation_policy: str = "reject"  # 'reject', 'repair', 'assume_zero'
+    invalid_correlation_policy: str = "reject"  # 'reject', 'repair'
+    missing_volatility_policy: str = "conservative"  # 'reject', 'neutral', 'conservative'
     factor_fallback_policy: str = "reject"  # 'reject', 'reduce', 'ignore_module'
     stress_policy: str = "reject"  # 'reject', 'reduce'
+    slippage_unit: str = "percentage"  # 'price', 'pips', 'percentage'
 
     drawdown_rules: List[DrawdownRule] = field(default_factory=default_drawdown_rules)
     volatility_rules: List[VolatilityRule] = field(default_factory=default_volatility_rules)

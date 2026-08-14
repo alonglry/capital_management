@@ -1,7 +1,8 @@
 """
-Module 12 — Final Risk Validation.
+Module 14 — Final Risk Validation.
 """
 
+import math
 from typing import Any, Dict
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
@@ -10,17 +11,7 @@ from capital_management.modules.base_module import BaseRiskModule
 
 class FinalValidationModule(BaseRiskModule):
     """
-    Module 12: Final risk validation gate that enforces all 8 risk constraints and determines approval.
-
-    Enforces:
-    1. position size > 0
-    2. individual risk <= max trade risk
-    3. portfolio heat <= max portfolio heat
-    4. correlation risk <= correlation limit
-    5. factor exposure <= factor limits
-    6. stress loss <= stress limit
-    7. transaction costs acceptable
-    8. instrument constraints satisfied
+    Module 14: Final risk validation gate enforcing 17 explicit safety conditions.
     """
 
     @property
@@ -30,92 +21,123 @@ class FinalValidationModule(BaseRiskModule):
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
             "final_position_size": state.final_position_size,
+            "actual_total_risk": state.actual_total_risk,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "rejection_reasons": list(state.rejection_reasons),
-            "max_trade_risk_pct": state.config.max_trade_risk_pct,
         }
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
             "approved": state.approved,
-            "final_risk": state.final_risk,
-            "final_risk_pct": state.final_risk_pct,
+            "actual_total_risk": state.actual_total_risk,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "rejection_reasons": list(state.rejection_reasons),
         }
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         equity = state.account.equity
         size = state.final_position_size
+        entry = state.trade.entry_price
+        stop = state.trade.proposed_stop_price
         stop_dist = state.stop_distance
+        inst = state.instrument
 
-        # Calculate final monetary risk
-        if state.trade.asset_class.lower() == "forex" and state.trade.pip_value_per_lot:
-            pip_val = state.trade.pip_value_per_lot
-            pip_size = 0.01 if "JPY" in state.trade.symbol.upper() else 0.0001
-            pips = stop_dist / pip_size
-            final_risk = size * (pips * pip_val)
-        else:
-            point_val = state.trade.point_value or 1.0
-            final_risk = size * stop_dist * point_val
+        # 1. Entry price valid
+        if entry <= 0 or math.isnan(entry) or math.isinf(entry):
+            state.add_rejection(f"Invalid entry price ({entry})")
 
-        final_risk_pct = final_risk / equity if equity > 0 else 0.0
+        # 2. Stop price valid
+        if stop <= 0 or math.isnan(stop) or math.isinf(stop):
+            state.add_rejection(f"Invalid stop price ({stop})")
 
-        state.final_risk = final_risk
-        state.final_risk_pct = final_risk_pct
+        # 3. Stop distance > 0
+        if stop_dist <= 0 or math.isnan(stop_dist) or math.isinf(stop_dist):
+            state.add_rejection(f"Invalid stop distance ({stop_dist}). Must be > 0.")
 
-        # 1. Check position size > 0
+        # 4. Position quantity > 0
         if size <= 0:
-            state.add_rejection(f"Final position size ({size}) is zero or negative.")
+            state.add_rejection(f"Position quantity ({size}) is zero or negative.")
 
-        # 2. Check individual risk <= max trade risk
-        max_trade_risk_monetary = equity * state.config.max_trade_risk_pct
-        if final_risk > max_trade_risk_monetary + 1e-6:
+        # 5 & 6. Quantity respects increment, min, max
+        if inst is not None:
+            if size < inst.min_quantity - 1e-6:
+                state.add_rejection(f"Position quantity ({size}) is below minimum allowed ({inst.min_quantity})")
+            if size > inst.max_quantity + 1e-6:
+                state.add_rejection(f"Position quantity ({size}) exceeds maximum allowed ({inst.max_quantity})")
+            inc_rem = abs(size / inst.quantity_increment - round(size / inst.quantity_increment))
+            if inc_rem > 1e-4:
+                state.add_rejection(f"Position quantity ({size}) does not respect quantity increment ({inst.quantity_increment})")
+
+        # 7. Actual stop-loss risk <= permitted risk
+        if state.actual_stop_loss_risk > state.permitted_risk_budget + 1e-4:
             state.add_rejection(
-                f"Final individual trade risk (${final_risk:,.2f}, {final_risk_pct:.2%}) exceeds max trade risk limit (${max_trade_risk_monetary:,.2f}, {state.config.max_trade_risk_pct:.2%})"
+                f"Actual stop-loss risk (${state.actual_stop_loss_risk:,.2f}) exceeds permitted risk budget (${state.permitted_risk_budget:,.2f})"
             )
 
-        # 3. Portfolio heat check
+        # 8. Transaction cost valid
+        if state.actual_transaction_cost < 0 or math.isnan(state.actual_transaction_cost) or math.isinf(state.actual_transaction_cost):
+            state.add_rejection(f"Invalid transaction cost (${state.actual_transaction_cost})")
+
+        # 9. CENTRAL INVARIANT: Actual total risk <= permitted risk budget
+        if state.actual_total_risk > state.permitted_risk_budget + 1e-4:
+            state.add_rejection(
+                f"CENTRAL INVARIANT VIOLATION: Actual total risk (${state.actual_total_risk:,.2f}) exceeds permitted risk budget (${state.permitted_risk_budget:,.2f})"
+            )
+
+        # 10. Portfolio heat remains within limit
         if state.projected_portfolio_heat > state.config.max_portfolio_heat_pct + 1e-6:
             state.add_rejection(
                 f"Projected portfolio heat ({state.projected_portfolio_heat:.2%}) exceeds maximum limit ({state.config.max_portfolio_heat_pct:.2%})"
             )
 
-        # 4. Correlation risk check
+        # 11. Correlation risk remains within limit
         if state.projected_correlation_adjusted_risk > state.config.max_correlation_adjusted_risk_pct + 1e-6:
             state.add_rejection(
-                f"Projected correlation-adjusted risk ({state.projected_correlation_adjusted_risk:.2%}) exceeds maximum limit ({state.config.max_correlation_adjusted_risk_pct:.2%})"
+                f"Projected correlation risk ({state.projected_correlation_adjusted_risk:.2%}) exceeds maximum limit ({state.config.max_correlation_adjusted_risk_pct:.2%})"
             )
 
-        # 5. Factor exposure check
+        # 12. Factor exposure remains within limit
         if state.factor_constraint_status == "REJECT":
             state.add_rejection("Factor exposure limit violation detected.")
 
-        # 6. Stress loss check
-        max_stress_loss = equity * state.config.stress_limits.get("max_stress_risk_pct", 0.02)
-        if state.stress_loss > max_stress_loss + 1e-6:
+        # 13. Stress risk remains within limit
+        max_stress_loss = equity * state.config.stress_limits.get("max_stress_risk_pct", 0.02) if equity > 0 else 0.0
+        if state.stress_loss > max_stress_loss + 1e-4:
             state.add_rejection(
-                f"Stress loss (${state.stress_loss:,.2f}, {state.stress_loss_pct:.2%}) exceeds stress limit (${max_stress_loss:,.2f})"
+                f"Stress loss (${state.stress_loss:,.2f}) exceeds maximum stress limit (${max_stress_loss:,.2f})"
             )
 
-        # 7. Transaction cost check
-        if state.total_transaction_cost > state.base_risk_budget and state.base_risk_budget > 0:
-            state.add_rejection(
-                f"Total transaction cost (${state.total_transaction_cost:,.2f}) exceeds initial risk budget (${state.base_risk_budget:,.2f})"
-            )
+        # 14. Instrument metadata exists
+        if inst is None:
+            state.add_rejection("Missing required InstrumentSpec metadata.")
 
-        # 8. Instrument constraints check
-        if stop_dist <= 0:
-            state.add_rejection(f"Invalid stop distance ({stop_dist}). Must be > 0.")
+        # 15. No NaN / Infinity in key metrics
+        for name, val in [
+            ("actual_total_risk", state.actual_total_risk),
+            ("permitted_risk_budget", state.permitted_risk_budget),
+            ("final_position_size", state.final_position_size),
+        ]:
+            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                state.add_rejection(f"Invalid numeric value ({val}) for {name}")
 
-        # Set final approval
+        # 16. No negative risk
+        if state.actual_total_risk < 0:
+            state.add_rejection(f"Negative actual total risk ({state.actual_total_risk})")
+
+        # 17. No negative quantity
+        if size < 0:
+            state.add_rejection(f"Negative position quantity ({size})")
+
+        # Set final approval boolean
         state.approved = (len(state.rejection_reasons) == 0)
 
         status = "PASS" if state.approved else "REJECT"
         if state.approved:
-            reason = f"Trade APPROVED: Final position size = {size:,.4f}, Final risk = ${final_risk:,.2f} ({final_risk_pct:.2%})"
+            reason = f"Trade APPROVED: Executable size = {size:,.4f}, Actual total risk = ${state.actual_total_risk:,.2f} <= Permitted budget = ${state.permitted_risk_budget:,.2f}"
         else:
-            reason = f"Trade REJECTED due to {len(state.rejection_reasons)} constraint violation(s)."
+            reason = f"Trade REJECTED due to {len(state.rejection_reasons)} safety gate violation(s)."
 
-        msg = f"Approved = {state.approved}, Final Size = {size:,.4f}, Final Risk = ${final_risk:,.2f} ({final_risk_pct:.2%}), Status = {status}"
+        msg = f"Approved = {state.approved}, Executable Size = {size:,.4f}, Actual Risk = ${state.actual_total_risk:,.2f}, Permitted = ${state.permitted_risk_budget:,.2f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

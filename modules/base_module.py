@@ -1,5 +1,5 @@
 """
-Abstract Base Class for all Capital Management Risk Modules.
+Abstract Base Classes for Capital Management Risk Modules, Transformers, and Constraints.
 """
 
 from abc import ABC, abstractmethod
@@ -10,13 +10,7 @@ from capital_management.models.state import CapitalManagementState, ModuleResult
 
 class BaseRiskModule(ABC):
     """
-    Abstract Base Class for risk management modules.
-
-    Every risk module must:
-    1. Define a unique module `name`.
-    2. Implement `_execute(state) -> state`.
-    3. Have explicit inputs/outputs with no hidden state or direct cross-module coupling.
-    4. Support being enabled/disabled gracefully without mutating calculation flow when disabled.
+    Abstract Base Class for all risk management modules.
     """
 
     @property
@@ -29,10 +23,7 @@ class BaseRiskModule(ABC):
 
     def process(self, state: CapitalManagementState) -> CapitalManagementState:
         """
-        Processes the state object through this risk module.
-
-        If the module is disabled in `state.config`, it records a SKIPPED ModuleResult,
-        adds a trace log, and leaves the risk calculation unchanged.
+        Processes state through risk module. Handles configuration toggling and state logging.
         """
         enabled = state.config.is_module_enabled(self.name)
 
@@ -54,18 +45,27 @@ class BaseRiskModule(ABC):
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         """
         Domain execution logic for enabled module.
-        Must record module result into `state.module_results[self.name]` and return `state`.
         """
         pass
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
-        """
-        Extracts key input parameters for debugging/auditing.
-        """
         return {}
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
-        """
-        Extracts key output metrics updated by module.
-        """
         return {}
+
+
+class RiskTransformer(BaseRiskModule, ABC):
+    """
+    Base class for soft risk governors that scale/modify a risk budget (risk_out = risk_in * multiplier).
+    Examples: conviction, drawdown, volatility, strategy allocation.
+    """
+    pass
+
+
+class RiskConstraint(BaseRiskModule, ABC):
+    """
+    Base class for hard risk constraints that calculate maximum permissible risk capacity (risk_capacity).
+    Examples: portfolio heat, correlation risk, factor exposure, stress risk.
+    """
+    pass

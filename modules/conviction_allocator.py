@@ -1,5 +1,5 @@
 """
-Module — Dynamic Conviction Risk Allocator.
+Module 2 — Dynamic Conviction Risk Allocator.
 """
 
 from typing import Any, Dict, Optional, Union
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
-from capital_management.modules.base_module import BaseRiskModule
+from capital_management.modules.base_module import RiskTransformer
 from capital_management.modules.conviction_mapping import (
     ConvictionMapping,
     LinearConvictionMapping,
@@ -16,21 +16,15 @@ from capital_management.modules.conviction_mapping import (
 )
 
 
-class ConvictionRiskAllocatorModule(BaseRiskModule):
+class ConvictionRiskAllocatorModule(RiskTransformer):
     """
-    Modular risk-management stage converting strategy conviction into a requested monetary risk budget.
+    Module 2: Converts strategy conviction into a requested monetary risk budget.
 
     Calculates long & short conviction independently, net conviction, directional strength,
-    and signal conflict penalty, then maps directional strength to a requested risk budget.
-
-    Natively supports both scalar float values and vectorized Pandas Series.
+    and signal conflict penalty, then maps directional strength to requested risk.
     """
 
     def __init__(self, mapping: Optional[ConvictionMapping] = None):
-        """
-        Args:
-            mapping (Optional[ConvictionMapping]): Custom conviction mapping strategy instance.
-        """
         self._custom_mapping = mapping
 
     @property
@@ -72,9 +66,6 @@ class ConvictionRiskAllocatorModule(BaseRiskModule):
     def _calc_side_conviction(
         self, slope: Union[float, pd.Series], threshold: Union[float, pd.Series], mult: float
     ) -> Union[float, pd.Series]:
-        """
-        Calculates side conviction clipped to [0, 1]. Safe against zero division.
-        """
         is_vector = isinstance(slope, pd.Series) or isinstance(threshold, pd.Series)
 
         if is_vector:
@@ -174,12 +165,12 @@ class ConvictionRiskAllocatorModule(BaseRiskModule):
         state.conflict_multiplier = conflict_mult
         state.requested_risk_budget = requested_budget
         state.requested_risk_pct = requested_pct
-        state.adjusted_risk_budget = requested_budget
+        state.governed_risk_budget = requested_budget
 
         status = "PASS"
         if is_vector:
             reason = f"Calculated vectorized conviction requested risk budget (Series length={len(requested_budget)})"
-            msg = f"Vectorized conviction completed for series"
+            msg = f"Vectorized conviction completed"
         else:
             reason = f"Calculated conviction requested risk budget = ${requested_budget:,.2f} ({requested_pct:.2%})"
             msg = f"Long = {c_long:.2f}, Short = {c_short:.2f}, Net = {net_c:.2f}, Str = {dir_str:.2f}, Conflict = {sig_conflict:.2f} -> Requested Risk = ${requested_budget:,.2f}"

@@ -6,13 +6,14 @@ from typing import List, Optional
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.result import CapitalManagementResult
 from capital_management.models.state import CapitalManagementState
 from capital_management.models.trade_candidate import TradeCandidate
 from capital_management.modules.base_module import BaseRiskModule
-from capital_management.modules.base_risk import BaseRiskModule as BaseRiskBudgetModule
+from capital_management.modules.base_risk import BaseRiskBudgetModule
 from capital_management.modules.conviction_allocator import ConvictionRiskAllocatorModule
 from capital_management.modules.correlation_risk import CorrelationRiskModule
 from capital_management.modules.drawdown_governor import DrawdownGovernorModule
@@ -20,6 +21,7 @@ from capital_management.modules.factor_exposure import FactorExposureModule
 from capital_management.modules.final_validation import FinalValidationModule
 from capital_management.modules.portfolio_heat import PortfolioHeatModule
 from capital_management.modules.position_sizing import PositionSizingModule
+from capital_management.modules.risk_reconciliation import ActualRiskReconciliationModule
 from capital_management.modules.stop_risk import StopRiskModule
 from capital_management.modules.strategy_allocation import StrategyAllocationModule
 from capital_management.modules.stress_test import StressTestModule
@@ -29,7 +31,7 @@ from capital_management.modules.volatility_governor import VolatilityGovernorMod
 
 def default_pipeline_modules() -> List[BaseRiskModule]:
     """
-    Returns default standard sequence of 13 risk modules.
+    Returns default standard sequence of 14 risk modules.
     """
     return [
         BaseRiskBudgetModule(),
@@ -44,6 +46,7 @@ def default_pipeline_modules() -> List[BaseRiskModule]:
         PositionSizingModule(),
         TransactionCostModule(),
         StressTestModule(),
+        ActualRiskReconciliationModule(),
         FinalValidationModule(),
     ]
 
@@ -58,10 +61,10 @@ class CapitalManagementPipeline:
 
     def __init__(self, modules: Optional[List[BaseRiskModule]] = None):
         """
-        Initializes the pipeline with a sequence of risk modules.
+        Initializes pipeline with a sequence of risk modules.
 
         Args:
-            modules (Optional[List[BaseRiskModule]]): List of risk module instances. If None, uses default 12-module pipeline.
+            modules (Optional[List[BaseRiskModule]]): List of risk module instances. If None, uses default 14-module pipeline.
         """
         self.modules: List[BaseRiskModule] = modules if modules is not None else default_pipeline_modules()
 
@@ -72,24 +75,17 @@ class CapitalManagementPipeline:
         trade: TradeCandidate,
         market_data: Optional[MarketData] = None,
         config: Optional[CapitalManagementConfig] = None,
+        instrument: Optional[InstrumentSpec] = None,
     ) -> CapitalManagementResult:
         """
         Executes the capital management pipeline on the provided input state.
-
-        Args:
-            account (AccountState): Current account state.
-            portfolio (List[Position]): Active open positions.
-            trade (TradeCandidate): Proposed candidate trade.
-            market_data (Optional[MarketData]): External market data container.
-            config (Optional[CapitalManagementConfig]): Configuration parameters and module toggles.
-
-        Returns:
-            CapitalManagementResult: Structured result object containing decision, sizes, trace, and module summaries.
         """
         if market_data is None:
             market_data = MarketData()
         if config is None:
             config = CapitalManagementConfig()
+        if instrument is None:
+            instrument = InstrumentSpec.create_default(trade.symbol, trade.asset_class)
 
         state = CapitalManagementState(
             account=account,
@@ -97,6 +93,7 @@ class CapitalManagementPipeline:
             trade=trade,
             market_data=market_data,
             config=config,
+            instrument=instrument,
         )
 
         state.add_trace("Pipeline", f"Starting execution of {len(self.modules)} modules for {trade.symbol} ({trade.asset_class})")
@@ -111,16 +108,27 @@ class CapitalManagementPipeline:
             symbol=trade.symbol,
             side=trade.side,
             asset_class=trade.asset_class,
+            base_risk_budget=state.base_risk_budget,
+            requested_risk_budget=state.requested_risk_budget,
+            requested_risk_pct=state.requested_risk_pct,
+            governed_risk_budget=state.governed_risk_budget,
+            trade_risk_capacity=state.trade_risk_capacity,
+            portfolio_heat_capacity=state.portfolio_heat_capacity,
+            correlation_risk_capacity=state.correlation_risk_capacity,
+            factor_risk_capacity=state.factor_risk_capacity,
+            stress_risk_capacity=state.stress_risk_capacity,
+            permitted_risk_budget=state.permitted_risk_budget,
             raw_position_size=state.raw_position_size,
+            executable_position_size=state.executable_position_size,
             final_position_size=state.final_position_size,
             entry_price=trade.entry_price,
             stop_price=trade.proposed_stop_price,
             stop_distance=state.stop_distance,
-            base_risk_budget=state.base_risk_budget,
-            requested_risk_budget=state.requested_risk_budget,
-            requested_risk_pct=state.requested_risk_pct,
-            final_risk_budget=state.adjusted_risk_budget,
-            final_risk_pct=state.final_risk_pct,
+            actual_stop_loss_risk=state.actual_stop_loss_risk,
+            actual_transaction_cost=state.actual_transaction_cost,
+            actual_total_risk=state.actual_total_risk,
+            final_risk_budget=state.permitted_risk_budget,
+            final_risk_pct=state.actual_total_risk / account.equity if account.equity > 0 else 0.0,
             current_portfolio_heat=state.current_portfolio_heat,
             projected_portfolio_heat=state.projected_portfolio_heat,
             correlation_adjusted_risk=state.correlation_adjusted_risk,

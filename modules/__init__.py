@@ -2,8 +2,8 @@
 Risk Modules subpackage exports.
 """
 
-from capital_management.modules.base_module import BaseRiskModule
-from capital_management.modules.base_risk import BaseRiskModule as BaseRiskBudgetModule
+from capital_management.modules.base_module import BaseRiskModule, RiskConstraint, RiskTransformer
+from capital_management.modules.base_risk import BaseRiskBudgetModule
 from capital_management.modules.conviction_allocator import ConvictionRiskAllocatorModule
 from capital_management.modules.conviction_mapping import (
     ConvictionMapping,
@@ -16,6 +16,7 @@ from capital_management.modules.factor_exposure import FactorExposureModule
 from capital_management.modules.final_validation import FinalValidationModule
 from capital_management.modules.portfolio_heat import PortfolioHeatModule
 from capital_management.modules.position_sizing import PositionSizingModule
+from capital_management.modules.risk_reconciliation import ActualRiskReconciliationModule
 from capital_management.modules.stop_risk import StopRiskModule
 from capital_management.modules.strategy_allocation import StrategyAllocationModule
 from capital_management.modules.stress_test import StressTestModule
@@ -24,6 +25,8 @@ from capital_management.modules.volatility_governor import VolatilityGovernorMod
 
 __all__ = [
     "BaseRiskModule",
+    "RiskTransformer",
+    "RiskConstraint",
     "BaseRiskBudgetModule",
     "ConvictionRiskAllocatorModule",
     "ConvictionMapping",
@@ -39,5 +42,6 @@ __all__ = [
     "PositionSizingModule",
     "TransactionCostModule",
     "StressTestModule",
+    "ActualRiskReconciliationModule",
     "FinalValidationModule",
 ]

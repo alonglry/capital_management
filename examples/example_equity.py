@@ -1,10 +1,12 @@
 """
-Example 1: Single Equity Trade Capital Allocation.
+Worked Example — Equity Trade Sizing with Refactored Capital Management Engine.
 """
 
 from capital_management.models import (
     AccountState,
     CapitalManagementConfig,
+    ConvictionRiskConfig,
+    InstrumentSpec,
     MarketData,
     TradeCandidate,
 )
@@ -12,68 +14,54 @@ from capital_management.pipeline import CapitalManagementPipeline
 
 
 def main():
-    print("=" * 70)
-    print("      CAPITAL MANAGEMENT ENGINE — EXAMPLE 1: EQUITY TRADE")
-    print("=" * 70)
-
-    # 1. Setup Account State ($100,000 equity, $75,000 cash)
-    account = AccountState(equity=100000.0, cash=75000.0, currency="USD", peak_equity=100000.0)
-
-    # 2. Proposed Trade Candidate (Long AAPL at $150.00, stop at $145.00)
+    account = AccountState(equity=100000.0, cash=80000.0, currency="USD")
     trade = TradeCandidate(
         symbol="AAPL",
         asset_class="equity",
         side="long",
-        entry_price=150.0,
-        proposed_stop_price=145.0,
+        entry_price=180.0,
+        proposed_stop_price=172.0,
+        slope_long=2.5,
+        threshold_long=1.0,
+        slope_short=0.0,
+        threshold_short=1.0,
         strategy_id="momentum",
-        slope_long=1.30,
-        threshold_long=1.00,
-        slope_short=0.20,
-        threshold_short=1.00,
-        sector="Technology",
-        country="US",
-        beta=1.2,
-        commission=0.005,  # $0.005 per share
-        spread=0.02,  # $0.02 spread
-        expected_slippage=0.001,  # 0.1% slippage
     )
+    instrument = InstrumentSpec.create_default("AAPL", "equity")
 
-    # 3. Market Data (Reference ATR = 3.0, Current ATR = 3.3 -> ATR ratio = 1.1)
-    market_data = MarketData(
-        atr={"AAPL": 3.3},
-        reference_atr={"AAPL": 3.0},
-    )
-
-    # 4. Configuration
     config = CapitalManagementConfig(
-        base_risk_pct=0.005,  # 0.5% base risk ($500)
-        max_trade_risk_pct=0.0075,  # 0.75% max risk per trade
-        max_portfolio_heat_pct=0.05,  # 5% max heat
+        base_risk_pct=0.01,
+        max_trade_risk_pct=0.02,
+        max_portfolio_heat_pct=0.05,
+        conviction_risk=ConvictionRiskConfig(
+            min_multiplier=0.5,
+            max_multiplier=1.5,
+        ),
     )
 
-    # 5. Run Pipeline
     pipeline = CapitalManagementPipeline()
-    result = pipeline.run(account=account, portfolio=[], trade=trade, market_data=market_data, config=config)
+    result = pipeline.run(
+        account=account,
+        portfolio=[],
+        trade=trade,
+        market_data=MarketData(),
+        config=config,
+        instrument=instrument,
+    )
 
-    # 6. Display Output Trace
-    print("\n--- CALCULATION TRACE ---")
-    for log in result.calculation_trace:
-        print(log)
-
-    print("\n--- DECISION RESULT ---")
-    print(f"Approved:               {result.approved}")
-    print(f"Symbol:                 {result.symbol} ({result.side.upper()})")
-    print(f"Base Risk Budget:       ${result.base_risk_budget:,.2f}")
-    print(f"Requested Risk Budget:  ${result.requested_risk_budget:,.2f} ({result.requested_risk_pct:.2%})")
-    print(f"Final Permitted Risk:   ${result.final_risk_budget:,.2f} ({result.final_risk_pct:.2%})")
-    print(f"Entry / Stop Price:     ${result.entry_price:.2f} / ${result.stop_price:.2f}")
-    print(f"Stop Distance:          ${result.stop_distance:.2f}")
-    print(f"Raw Position Size:      {result.raw_position_size:,.2f} shares")
-    print(f"Final Position Size:    {result.final_position_size:,.0f} shares")
-    print(f"Estimated Tx Cost:      ${result.transaction_cost:,.2f}")
-    print(f"Stress Loss:            ${result.stress_loss:,.2f}")
-    print("=" * 70)
+    print("=== EQUITY TRADE CAPITAL MANAGEMENT REPORT ===")
+    print(f"Symbol: {result.symbol} ({result.asset_class.upper()}) | Side: {result.side.upper()}")
+    print(f"Approval Status: {'APPROVED' if result.approved else 'REJECTED'}")
+    print(f"Base Risk Budget: ${result.base_risk_budget:,.2f}")
+    print(f"Requested Conviction Risk: ${result.requested_risk_budget:,.2f} ({result.requested_risk_pct:.2%})")
+    print(f"Governed Risk Budget: ${result.governed_risk_budget:,.2f}")
+    print(f"Permitted Risk Budget: ${result.permitted_risk_budget:,.2f}")
+    print(f"Theoretical Raw Shares: {result.raw_position_size:.4f}")
+    print(f"Executable Floor Shares: {result.executable_position_size:.4f}")
+    print(f"Actual Stop Loss Risk: ${result.actual_stop_loss_risk:,.2f}")
+    print(f"Actual Transaction Cost: ${result.actual_transaction_cost:,.2f}")
+    print(f"Actual Total Risk: ${result.actual_total_risk:,.2f}")
+    print(f"Actual Total Risk <= Permitted: {result.actual_total_risk <= result.permitted_risk_budget}")
 
 
 if __name__ == "__main__":

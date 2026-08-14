@@ -1,21 +1,22 @@
 """
-Module 9 — Position Sizing.
+Module 10 — Position Sizing.
 """
 
 import math
 from typing import Any, Dict
 
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.modules.base_module import BaseRiskModule
 
 
 class PositionSizingModule(BaseRiskModule):
     """
-    Module 9: Converts monetary risk budget into position size (shares/contracts for Equities, lots/units for Forex).
+    Module 10: Converts permitted_risk_budget into theoretical raw_position_size and floor-rounded executable_position_size.
 
-    Formulas:
-        Equities: raw_quantity = risk_budget / stop_distance
-        Forex: raw_lots = risk_budget / (pips * pip_value_per_lot)
+    Critical Invariant:
+        Never round upward if rounding upward can increase risk.
+        executable_position_size = floor(raw_position_size / quantity_increment) * quantity_increment
     """
 
     @property
@@ -26,43 +27,36 @@ class PositionSizingModule(BaseRiskModule):
         return {
             "symbol": state.trade.symbol,
             "asset_class": state.trade.asset_class,
-            "adjusted_risk_budget": state.adjusted_risk_budget,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "stop_distance": state.stop_distance,
-            "pip_value_per_lot": state.trade.pip_value_per_lot,
+            "monetary_risk_per_unit": state.monetary_risk_per_unit,
         }
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
             "raw_position_size": state.raw_position_size,
             "rounded_position_size": state.rounded_position_size,
+            "executable_position_size": state.executable_position_size,
         }
 
-    def _apply_rounding(self, raw_size: float, asset_class: str, state: CapitalManagementState) -> float:
-        rules = state.config.rounding_rules
-        rule = rules.get(asset_class.lower(), rules.get("default", "round_2dp"))
-
-        if rule == "floor_int":
-            return float(math.floor(raw_size))
-        elif rule == "round_int":
-            return float(round(raw_size))
-        elif rule == "round_2dp":
-            return round(raw_size, 2)
-        elif rule == "round_4dp":
-            return round(raw_size, 4)
-        else:
-            return raw_size
-
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        budget = state.adjusted_risk_budget
-        stop_dist = state.stop_distance
-        asset_class = state.trade.asset_class.lower()
+        budget = state.permitted_risk_budget
+        risk_per_unit = state.monetary_risk_per_unit
 
-        if budget <= 0 or stop_dist <= 0:
+        if state.instrument is None:
+            state.instrument = InstrumentSpec.create_default(state.trade.symbol, state.trade.asset_class)
+
+        inst = state.instrument
+        qty_inc = inst.quantity_increment
+        min_qty = inst.min_quantity
+
+        if budget <= 0 or risk_per_unit <= 0:
             state.raw_position_size = 0.0
             state.rounded_position_size = 0.0
+            state.executable_position_size = 0.0
             state.final_position_size = 0.0
             status = "REJECT"
-            reason = f"Cannot calculate position size with risk_budget={budget:,.2f} or stop_distance={stop_dist}"
+            reason = f"Cannot calculate position size with permitted_risk_budget=${budget:,.2f} or risk_per_unit=${risk_per_unit:,.4f}"
             state.add_rejection(reason)
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
@@ -74,35 +68,44 @@ class PositionSizingModule(BaseRiskModule):
             )
             return state
 
-        if asset_class == "forex":
-            # Forex calculation
-            pip_val = state.trade.pip_value_per_lot
-            symbol = state.trade.symbol.upper()
-            pip_size = 0.01 if "JPY" in symbol else 0.0001
+        # 1. Theoretical raw position size
+        raw_size = budget / risk_per_unit
 
-            if pip_val is not None and pip_val > 0:
-                pips = stop_dist / pip_size
-                raw_size = budget / (pips * pip_val)
-            else:
-                # Default units / direct price distance
-                point_val = state.trade.point_value or 1.0
-                raw_size = budget / (stop_dist * point_val)
+        # 2. Strict Floor Rounding DOWN to quantity_increment
+        executable_size = math.floor(raw_size / qty_inc) * qty_inc
+        # Clean precision floating point artifacts
+        if qty_inc >= 1.0:
+            executable_size = float(int(executable_size))
         else:
-            # Equities / default shares
-            point_val = state.trade.point_value or 1.0
-            raw_size = budget / (stop_dist * point_val)
-
-        rounded_size = self._apply_rounding(raw_size, asset_class, state)
+            decimals = max(0, -int(math.floor(math.log10(qty_inc))))
+            executable_size = round(executable_size, decimals)
 
         state.raw_position_size = raw_size
-        state.rounded_position_size = rounded_size
-        state.cost_adjusted_position_size = rounded_size
-        state.final_position_size = rounded_size
+        state.rounded_position_size = executable_size
+        state.executable_position_size = executable_size
+        state.cost_adjusted_position_size = executable_size
+        state.final_position_size = executable_size
 
-        status = "PASS"
-        reason = f"Raw size = {raw_size:,.4f}, Rounded size = {rounded_size:,.4f} ({asset_class})"
+        # 3. Check Minimum Quantity Constraint
+        if executable_size < min_qty:
+            risk_at_min = min_qty * risk_per_unit
+            if risk_at_min > budget:
+                status = "REJECT"
+                reason = f"Calculated size ({raw_size:.4f}) is below minimum broker quantity ({min_qty}). Risk at minimum quantity (${risk_at_min:,.2f}) exceeds permitted budget (${budget:,.2f})"
+                state.add_rejection(reason)
+                state.executable_position_size = 0.0
+                state.final_position_size = 0.0
+            else:
+                executable_size = min_qty
+                state.executable_position_size = executable_size
+                state.final_position_size = executable_size
+                status = "PASS"
+                reason = f"Floor rounded size set to minimum quantity ({min_qty})"
+        else:
+            status = "PASS"
+            reason = f"Raw size = {raw_size:,.4f}, Floor-rounded size = {executable_size:,.4f} (increment={qty_inc})"
 
-        msg = f"Asset = {asset_class}, Budget = ${budget:,.2f}, Stop Dist = {stop_dist:,.5f} -> Raw = {raw_size:,.4f}, Rounded = {rounded_size:,.4f}"
+        msg = f"Budget = ${budget:,.2f}, Risk/Unit = ${risk_per_unit:,.4f} -> Raw = {raw_size:,.4f}, Executable = {state.executable_position_size:,.4f}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

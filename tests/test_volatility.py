@@ -35,7 +35,8 @@ class TestVolatilityGovernorModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
 
     def test_atr_ratio_tiers(self):

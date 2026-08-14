@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Unit tests for ConvictionRiskAllocatorModule.
 """
@@ -53,7 +55,8 @@ class TestConvictionRiskAllocatorModule(unittest.TestCase):
             market_data=MarketData(),
             config=config,
             base_risk_budget=base_budget,
-            adjusted_risk_budget=base_budget,
+            governed_risk_budget=base_budget,
+            permitted_risk_budget=base_budget,
         )
 
     def test_1_long_conviction_only(self):

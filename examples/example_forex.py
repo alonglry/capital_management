@@ -1,10 +1,12 @@
 """
-Example 2: Single Forex Pair Capital Allocation.
+Worked Example — Forex Trade Sizing with Refactored Capital Management Engine.
 """
 
 from capital_management.models import (
     AccountState,
     CapitalManagementConfig,
+    ConvictionRiskConfig,
+    InstrumentSpec,
     MarketData,
     TradeCandidate,
 )
@@ -12,61 +14,56 @@ from capital_management.pipeline import CapitalManagementPipeline
 
 
 def main():
-    print("=" * 70)
-    print("      CAPITAL MANAGEMENT ENGINE — EXAMPLE 2: FOREX TRADE")
-    print("=" * 70)
-
-    # 1. Setup Account State ($100,000 equity, USD)
-    account = AccountState(equity=100000.0, cash=75000.0, currency="USD")
-
-    # 2. Proposed Forex Trade Candidate (Long EURUSD at 1.08500, stop at 1.08200 -> 30 pips)
+    account = AccountState(equity=50000.0, cash=50000.0, currency="USD")
     trade = TradeCandidate(
         symbol="EURUSD",
         asset_class="forex",
         side="long",
-        entry_price=1.08500,
-        proposed_stop_price=1.08200,
-        pip_value_per_lot=10.0,  # $10 per pip for 1 standard lot
-        strategy_id="breakout",
-        spread=0.00015,  # 1.5 pips spread
-        commission=5.0,  # $5 per lot round turn
-        expected_slippage=0.00005,  # 0.5 pips slippage
+        entry_price=1.0850,
+        proposed_stop_price=1.0810,  # 40 pips stop distance
+        pip_value_per_lot=10.0,
+        spread=0.0001,  # 1 pip spread
+        commission=3.50,
+        slope_long=3.0,
+        threshold_long=1.0,
+        slope_short=0.0,
+        threshold_short=1.0,
+        strategy_id="fx_trend",
     )
+    instrument = InstrumentSpec.create_default("EURUSD", "forex")
 
-    # 3. Market Data (ATR ratio = 1.0)
-    market_data = MarketData(
-        atr={"EURUSD": 0.0060},
-        reference_atr={"EURUSD": 0.0060},
-    )
-
-    # 4. Configuration
     config = CapitalManagementConfig(
-        base_risk_pct=0.005,  # 0.5% base risk ($500)
-        stress_policy="reduce",  # Reduce size if stress limit reached
-        stress_limits={"max_stress_risk_pct": 0.025, "gap_pct": 0.003, "extra_slippage_pct": 0.001},
+        base_risk_pct=0.01,
+        stress_policy="reduce",
+        conviction_risk=ConvictionRiskConfig(
+            min_multiplier=0.5,
+            max_multiplier=1.5,
+        ),
     )
 
-    # 5. Run Pipeline
     pipeline = CapitalManagementPipeline()
-    result = pipeline.run(account=account, portfolio=[], trade=trade, market_data=market_data, config=config)
+    result = pipeline.run(
+        account=account,
+        portfolio=[],
+        trade=trade,
+        market_data=MarketData(),
+        config=config,
+        instrument=instrument,
+    )
 
-    # 6. Display Output Trace
-    print("\n--- CALCULATION TRACE ---")
-    for log in result.calculation_trace:
-        print(log)
-
-    print("\n--- DECISION RESULT ---")
-    print(f"Approved:               {result.approved}")
-    print(f"Pair:                   {result.symbol} ({result.side.upper()})")
-    print(f"Base Risk Budget:       ${result.base_risk_budget:,.2f}")
-    print(f"Final Permitted Risk:   ${result.final_risk_budget:,.2f} ({result.final_risk_pct:.2%})")
-    print(f"Entry / Stop Level:     {result.entry_price:.5f} / {result.stop_price:.5f}")
-    print(f"Stop Distance (Pips):   {result.stop_distance / 0.0001:.1f} pips")
-    print(f"Raw Position Size:      {result.raw_position_size:.4f} lots")
-    print(f"Final Position Size:    {result.final_position_size:.2f} lots")
-    print(f"Estimated Tx Cost:      ${result.transaction_cost:,.2f}")
-    print(f"Stress Loss:            ${result.stress_loss:,.2f}")
-    print("=" * 70)
+    print("=== FOREX TRADE CAPITAL MANAGEMENT REPORT ===")
+    print(f"Symbol: {result.symbol} ({result.asset_class.upper()}) | Side: {result.side.upper()}")
+    print(f"Approval Status: {'APPROVED' if result.approved else 'REJECTED'}")
+    print(f"Base Risk Budget: ${result.base_risk_budget:,.2f}")
+    print(f"Requested Conviction Risk: ${result.requested_risk_budget:,.2f} ({result.requested_risk_pct:.2%})")
+    print(f"Governed Risk Budget: ${result.governed_risk_budget:,.2f}")
+    print(f"Permitted Risk Budget: ${result.permitted_risk_budget:,.2f}")
+    print(f"Theoretical Raw Lots: {result.raw_position_size:.4f}")
+    print(f"Executable Floor Lots: {result.executable_position_size:.4f}")
+    print(f"Actual Stop Loss Risk: ${result.actual_stop_loss_risk:,.2f}")
+    print(f"Actual Transaction Cost: ${result.actual_transaction_cost:,.2f}")
+    print(f"Actual Total Risk: ${result.actual_total_risk:,.2f}")
+    print(f"Actual Total Risk <= Permitted: {result.actual_total_risk <= result.permitted_risk_budget}")
 
 
 if __name__ == "__main__":

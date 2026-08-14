@@ -52,7 +52,8 @@ class TestCorrelationRiskModule(unittest.TestCase):
             trade=self.trade,
             market_data=market_data,
             config=config,
-            adjusted_risk_budget=1000.0,  # 1% equity
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,  # 1% equity
         )
         # r1 = 0.01, r2 = 0.01, corr = 0 -> sqrt(0.01^2 + 0.01^2) = sqrt(0.0002) = 0.014142 (1.41%)
         updated = self.module.process(state)
@@ -72,7 +73,8 @@ class TestCorrelationRiskModule(unittest.TestCase):
             trade=self.trade,
             market_data=market_data,
             config=config,
-            adjusted_risk_budget=1000.0,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
         )
         # r1 = 0.01, r2 = 0.01, corr = 1 -> sqrt((0.01+0.01)^2) = 0.02 (2.0%)
         updated = self.module.process(state)
@@ -87,7 +89,8 @@ class TestCorrelationRiskModule(unittest.TestCase):
             trade=self.trade,
             market_data=market_data,
             config=config,
-            adjusted_risk_budget=1000.0,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.module_results["correlation_check"].status, "PASS")

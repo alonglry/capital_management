@@ -60,7 +60,8 @@ class TestFactorExposureModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.current_factor_exposure["USD"], -2.0)
@@ -80,7 +81,8 @@ class TestFactorExposureModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.factor_constraint_status, "PASS")

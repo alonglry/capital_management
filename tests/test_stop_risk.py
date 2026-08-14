@@ -59,7 +59,7 @@ class TestStopRiskModule(unittest.TestCase):
         updated = self.module.process(state)
         self.assertEqual(updated.stop_distance, 0.0)
         self.assertEqual(updated.module_results["stop_risk"].status, "REJECT")
-        self.assertIn("equals entry price", updated.rejection_reasons[0])
+        self.assertIn("stop_distance <= 0", updated.rejection_reasons[0])
 
 
 if __name__ == "__main__":

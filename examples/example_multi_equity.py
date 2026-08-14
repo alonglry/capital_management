@@ -1,10 +1,11 @@
 """
-Example 4: Multiple Equity Positions (Heat & Correlation Governance).
+Worked Example — Multi-Position Equity Portfolio Risk Management.
 """
 
 from capital_management.models import (
     AccountState,
     CapitalManagementConfig,
+    InstrumentSpec,
     MarketData,
     Position,
     TradeCandidate,
@@ -13,87 +14,89 @@ from capital_management.pipeline import CapitalManagementPipeline
 
 
 def main():
-    print("=" * 70)
-    print("  CAPITAL MANAGEMENT ENGINE — EXAMPLE 4: MULTI-EQUITY PORTFOLIO")
-    print("=" * 70)
+    account = AccountState(equity=100000.0, cash=60000.0, currency="USD")
 
-    # 1. Account state in drawdown (Peak = 100k, Current = 92k -> DD = 8%, Tier multiplier = 0.75)
-    account = AccountState(equity=92000.0, cash=40000.0, currency="USD", peak_equity=100000.0)
-
-    # 2. Existing Open Positions ($2,000 + $1,500 = $3,500 total risk -> 3.8% current heat)
-    portfolio = [
+    existing_positions = [
+        Position(
+            symbol="AAPL",
+            asset_class="equity",
+            side="long",
+            quantity=100,
+            entry_price=170.0,
+            current_price=180.0,
+            stop_price=160.0,
+            monetary_risk_at_stop=2000.0,
+            strategy_id="momentum",
+            sector="Technology",
+        ),
         Position(
             symbol="MSFT",
             asset_class="equity",
             side="long",
-            quantity=100,
-            entry_price=300.0,
-            current_price=310.0,
-            stop_price=280.0,
-            monetary_risk_at_stop=2000.0,
+            quantity=50,
+            entry_price=310.0,
+            current_price=330.0,
+            stop_price=290.0,
+            monetary_risk_at_stop=1000.0,
             strategy_id="trend",
             sector="Technology",
-            beta=1.1,
-        ),
-        Position(
-            symbol="NVDA",
-            asset_class="equity",
-            side="long",
-            quantity=50,
-            entry_price=400.0,
-            current_price=420.0,
-            stop_price=370.0,
-            monetary_risk_at_stop=1500.0,
-            strategy_id="breakout",
-            sector="Technology",
-            beta=1.5,
         ),
     ]
 
-    # 3. Trade Candidate (AMD)
-    trade = TradeCandidate(
-        symbol="AMD",
+    candidate_trade = TradeCandidate(
+        symbol="NVDA",
         asset_class="equity",
         side="long",
-        entry_price=110.0,
-        proposed_stop_price=100.0,
-        strategy_id="breakout",
+        entry_price=450.0,
+        proposed_stop_price=420.0,
+        slope_long=2.0,
+        threshold_long=1.0,
+        slope_short=0.0,
+        threshold_short=1.0,
+        strategy_id="momentum",
         sector="Technology",
-        beta=1.4,
+        atr=10.0,
     )
 
-    # 4. Correlation Matrix
-    corr_matrix = {
-        "MSFT": {"MSFT": 1.0, "NVDA": 0.75, "AMD": 0.70},
-        "NVDA": {"MSFT": 0.75, "NVDA": 1.0, "AMD": 0.80},
-        "AMD": {"MSFT": 0.70, "NVDA": 0.80, "AMD": 1.0},
+    correlation_data = {
+        "AAPL": {"AAPL": 1.0, "MSFT": 0.65, "NVDA": 0.70},
+        "MSFT": {"AAPL": 0.65, "MSFT": 1.0, "NVDA": 0.60},
+        "NVDA": {"AAPL": 0.70, "MSFT": 0.60, "NVDA": 1.0},
     }
-    market_data = MarketData(correlation_matrix=corr_matrix)
 
-    # 5. Configuration (Base risk = 0.5% -> $460, DD mult = 0.75 -> $345, Max heat = 5% -> $4,600 cap)
+    market_data = MarketData(
+        correlation_matrix=correlation_data,
+        atr={"NVDA": 10.0},
+        reference_atr={"NVDA": 10.0},
+    )
     config = CapitalManagementConfig(
-        base_risk_pct=0.005,
+        base_risk_pct=0.01,
         max_portfolio_heat_pct=0.05,
         max_correlation_adjusted_risk_pct=0.04,
-        factor_limits={"Technology": 0.70, "market_beta": 1.5},
+        stress_policy="reduce",
+        factor_limits={"Technology": 0.50},
     )
 
     pipeline = CapitalManagementPipeline()
-    result = pipeline.run(account=account, portfolio=portfolio, trade=trade, market_data=market_data, config=config)
+    result = pipeline.run(
+        account=account,
+        portfolio=existing_positions,
+        trade=candidate_trade,
+        market_data=market_data,
+        config=config,
+    )
 
-    print("\n--- CALCULATION TRACE ---")
-    for log in result.calculation_trace:
-        print(log)
-
-    print("\n--- DECISION RESULT ---")
-    print(f"Approved:                   {result.approved}")
-    print(f"Symbol:                     {result.symbol}")
-    print(f"Current Portfolio Heat:     {result.current_portfolio_heat:.2%}")
-    print(f"Projected Portfolio Heat:   {result.projected_portfolio_heat:.2%}")
-    print(f"Corr-Adjusted Risk:         {result.correlation_adjusted_risk:.2%}")
-    print(f"Permitted Risk Budget:      ${result.final_risk_budget:,.2f}")
-    print(f"Final Position Size:        {result.final_position_size:,.0f} shares")
-    print("=" * 70)
+    print("=== MULTI-EQUITY PORTFOLIO RISK REPORT ===")
+    print(f"Candidate Symbol: {result.symbol} | Side: {result.side.upper()}")
+    print(f"Approval Status: {'APPROVED' if result.approved else 'REJECTED'}")
+    print(f"Current Portfolio Heat: {result.current_portfolio_heat:.2%}")
+    print(f"Projected Portfolio Heat: {result.projected_portfolio_heat:.2%}")
+    print(f"Heat Capacity: ${result.portfolio_heat_capacity:,.2f}")
+    print(f"Correlation Capacity: ${result.correlation_risk_capacity:,.2f}")
+    print(f"Permitted Risk Budget: ${result.permitted_risk_budget:,.2f}")
+    print(f"Executable Floor Shares: {result.executable_position_size:.4f}")
+    print(f"Actual Total Risk: ${result.actual_total_risk:,.2f}")
+    print(f"Actual Total Risk <= Permitted: {result.actual_total_risk <= result.permitted_risk_budget}")
 
 
 if __name__ == "__main__":

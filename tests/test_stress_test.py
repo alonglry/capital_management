@@ -1,5 +1,5 @@
 """
-Unit tests for Module 11 — Stress Test.
+Unit tests for StressTestModule.
 """
 
 import unittest
@@ -15,23 +15,20 @@ from capital_management.modules.stress_test import StressTestModule
 class TestStressTestModule(unittest.TestCase):
 
     def setUp(self):
-        self.account = AccountState(equity=100000.0, cash=50000.0)
+        self.account = AccountState(equity=100000.0, cash=80000.0, currency="USD")
         self.trade = TradeCandidate(
-            symbol="TSLA",
+            symbol="AAPL",
             asset_class="equity",
             side="long",
-            entry_price=200.0,
-            proposed_stop_price=190.0,
-            strategy_id="breakout",
+            entry_price=150.0,
+            proposed_stop_price=140.0,
+            strategy_id="momentum",
         )
         self.module = StressTestModule()
 
-    def test_stress_test_rejection(self):
-        # Position size = 100 shares. Normal loss = 100 * 10 = $1,000.
-        # Gap 5% ($10/sh -> $1000), extra slippage 2% ($4/sh -> $400) -> Stress loss = $2,400 (2.4%).
-        # Stress limit = 2.0% ($2,000). Stress policy = 'reject'.
+    def test_stress_test_normal_pass(self):
         config = CapitalManagementConfig(
-            stress_limits={"max_stress_risk_pct": 0.02, "gap_pct": 0.05, "extra_slippage_pct": 0.02},
+            stress_limits={"gap_pct": 0.01, "extra_slippage_pct": 0.005, "max_stress_risk_pct": 0.05},
             stress_policy="reject",
         )
         state = CapitalManagementState(
@@ -40,17 +37,42 @@ class TestStressTestModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
             stop_distance=10.0,
+            monetary_risk_per_unit=10.0,
+            executable_position_size=100.0,
             final_position_size=100.0,
         )
         updated = self.module.process(state)
-        self.assertEqual(updated.stress_loss, 2400.0)
-        self.assertEqual(updated.module_results["stress_test"].status, "REJECT")
-        self.assertIn("exceeds limit", updated.rejection_reasons[0].lower())
+        self.assertEqual(updated.normal_loss, 1000.0)
+        self.assertEqual(updated.stress_loss, 1225.0)  # 1000 + 100*1.5 + 100*0.75 = 1225
+        self.assertEqual(updated.module_results["stress_test"].status, "PASS")
 
-    def test_stress_test_reduce_policy(self):
+    def test_stress_test_rejection(self):
         config = CapitalManagementConfig(
-            stress_limits={"max_stress_risk_pct": 0.02, "gap_pct": 0.05, "extra_slippage_pct": 0.02},
+            stress_limits={"gap_pct": 0.05, "extra_slippage_pct": 0.02, "max_stress_risk_pct": 0.005},  # max limit $500
+            stress_policy="reject",
+        )
+        state = CapitalManagementState(
+            account=self.account,
+            portfolio=[],
+            trade=self.trade,
+            market_data=MarketData(),
+            config=config,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
+            stop_distance=10.0,
+            monetary_risk_per_unit=10.0,
+            executable_position_size=100.0,
+            final_position_size=100.0,
+        )
+        updated = self.module.process(state)
+        self.assertEqual(updated.module_results["stress_test"].status, "REJECT")
+
+    def test_stress_test_capacity_reduction(self):
+        config = CapitalManagementConfig(
+            stress_limits={"gap_pct": 0.02, "extra_slippage_pct": 0.01, "max_stress_risk_pct": 0.01},  # max limit $1000
             stress_policy="reduce",
         )
         state = CapitalManagementState(
@@ -59,12 +81,15 @@ class TestStressTestModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
             stop_distance=10.0,
+            monetary_risk_per_unit=10.0,
+            executable_position_size=100.0,
             final_position_size=100.0,
         )
         updated = self.module.process(state)
-        self.assertTrue(updated.final_position_size < 100.0)
-        self.assertEqual(updated.module_results["stress_test"].status, "PASS")
+        self.assertTrue(updated.stress_risk_capacity < 1000.0)
 
 
 if __name__ == "__main__":

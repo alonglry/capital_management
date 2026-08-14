@@ -34,8 +34,10 @@ class TestPositionSizingModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
             stop_distance=5.30,
+            monetary_risk_per_unit=5.30,
         )
         # Raw shares = 500 / 5.30 = 94.3396. Rounding = floor_int -> 94 shares.
         updated = self.module.process(state)
@@ -59,8 +61,10 @@ class TestPositionSizingModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=300.0,
+            governed_risk_budget=300.0,
+            permitted_risk_budget=300.0,
             stop_distance=0.0030,
+            monetary_risk_per_unit=300.0,
         )
         # 300 / (30 * 10) = 1.0 lot.
         updated = self.module.process(state)

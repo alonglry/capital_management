@@ -11,7 +11,7 @@ from capital_management.models.portfolio import Position
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.models.trade_candidate import TradeCandidate
 from capital_management.modules.base_module import BaseRiskModule
-from capital_management.modules.base_risk import BaseRiskModule as BaseRiskBudgetModule
+from capital_management.modules.base_risk import BaseRiskBudgetModule
 from capital_management.modules.portfolio_heat import PortfolioHeatModule
 from capital_management.modules.position_sizing import PositionSizingModule
 from capital_management.modules.stop_risk import StopRiskModule
@@ -28,9 +28,8 @@ class CustomVolatilityGovernor(BaseRiskModule):
         return "volatility_governor"
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        # Custom logic: sets volatility multiplier to 0.90 fixed
         state.volatility_multiplier = 0.90
-        state.adjusted_risk_budget *= 0.90
+        state.governed_risk_budget *= 0.90
         state.add_trace(self.name, "Custom Volatility Governor applied fixed 0.90 multiplier")
         state.module_results[self.name] = ModuleResult(
             module_name=self.name,
@@ -90,7 +89,6 @@ class TestCapitalManagementPipeline(unittest.TestCase):
         Verify replacing VolatilityGovernor with CustomVolatilityGovernor seamlessly works.
         """
         pipeline = CapitalManagementPipeline()
-        # Replace module in pipeline list
         pipeline.modules = [
             m if m.name != "volatility_governor" else CustomVolatilityGovernor()
             for m in pipeline.modules

@@ -1,20 +1,21 @@
 """
-Module 5 — Portfolio Heat.
+Module 6 — Portfolio Heat.
 """
 
 from typing import Any, Dict
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
-from capital_management.modules.base_module import BaseRiskModule
+from capital_management.modules.base_module import RiskConstraint
 
 
-class PortfolioHeatModule(BaseRiskModule):
+class PortfolioHeatModule(RiskConstraint):
     """
-    Module 5: Evaluates current and projected total portfolio heat (risk / equity).
+    Module 6: Hard risk constraint enforcing stop-loss portfolio heat limits.
 
     Formula:
-        Current Heat = sum(position_monetary_risk_i) / Equity
-        Projected Heat = (sum(position_monetary_risk_i) + candidate_risk_budget) / Equity
+        current_heat = sum(existing_position_monetary_risk) / account_equity
+        portfolio_heat_capacity = max(0, account_equity * max_portfolio_heat - existing_position_monetary_risk)
+        permitted_risk_budget = min(permitted_risk_budget, portfolio_heat_capacity)
     """
 
     @property
@@ -23,71 +24,70 @@ class PortfolioHeatModule(BaseRiskModule):
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         equity = state.account.equity
-        curr_heat_monetary = sum(p.monetary_risk_at_stop for p in state.portfolio)
-        curr_heat_pct = curr_heat_monetary / equity if equity > 0 else 0.0
+        curr_risk = sum(p.monetary_risk_at_stop for p in state.portfolio)
+        curr_heat_pct = curr_risk / equity if equity > 0 else 0.0
         return {
             "equity": equity,
-            "current_portfolio_heat_pct": curr_heat_pct,
+            "existing_position_risk": curr_risk,
+            "current_stop_loss_heat": curr_heat_pct,
             "max_portfolio_heat_pct": state.config.max_portfolio_heat_pct,
-            "candidate_risk_budget": state.adjusted_risk_budget,
+            "permitted_risk_budget_before": state.permitted_risk_budget,
         }
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
+            "portfolio_heat_capacity": state.portfolio_heat_capacity,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "current_portfolio_heat": state.current_portfolio_heat,
             "projected_portfolio_heat": state.projected_portfolio_heat,
-            "remaining_portfolio_risk_capacity": state.remaining_portfolio_risk_capacity,
-            "adjusted_risk_budget": state.adjusted_risk_budget,
         }
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         equity = state.account.equity
         if equity <= 0:
-            state.add_rejection("Account equity is zero or negative.")
+            state.add_rejection("Account equity is non-positive for portfolio heat calculation.")
+            state.portfolio_heat_capacity = 0.0
+            state.permitted_risk_budget = 0.0
+            state.module_results[self.name] = ModuleResult(
+                module_name=self.name,
+                enabled=True,
+                input_summary=self._get_input_summary(state),
+                output_summary=self._get_output_summary(state),
+                status="REJECT",
+                reason="Account equity is non-positive",
+            )
             return state
 
         max_heat_pct = state.config.max_portfolio_heat_pct
-        max_heat_monetary = equity * max_heat_pct
+        max_monetary_heat = equity * max_heat_pct
 
-        curr_heat_monetary = sum(p.monetary_risk_at_stop for p in state.portfolio)
-        curr_heat_pct = curr_heat_monetary / equity
+        existing_risk = sum(p.monetary_risk_at_stop for p in state.portfolio)
+        current_heat_pct = existing_risk / equity
 
-        remaining_monetary_capacity = max(0.0, max_heat_monetary - curr_heat_monetary)
-        remaining_pct_capacity = remaining_monetary_capacity / equity
+        heat_capacity = max(0.0, max_monetary_heat - existing_risk)
+        state.portfolio_heat_capacity = heat_capacity
+        state.current_portfolio_heat = current_heat_pct
 
-        proposed_budget = state.adjusted_risk_budget
-        projected_heat_monetary = curr_heat_monetary + proposed_budget
-        projected_heat_pct = projected_heat_monetary / equity
+        prev_permitted = state.permitted_risk_budget
+        new_permitted = min(prev_permitted, heat_capacity)
+        state.permitted_risk_budget = new_permitted
 
-        state.current_portfolio_heat = curr_heat_pct
-        state.remaining_portfolio_risk_capacity = remaining_monetary_capacity
-
-        status = "PASS"
-        reason = f"Projected portfolio heat {projected_heat_pct:.2%} is within maximum limit {max_heat_pct:.2%}"
-
-        if projected_heat_pct > max_heat_pct:
-            if state.config.heat_policy == "reject":
-                status = "REJECT"
-                reason = f"Projected portfolio heat = {projected_heat_pct:.2%}, limit = {max_heat_pct:.2%}"
-                state.add_rejection(reason)
-            else:  # 'reduce' policy
-                if remaining_monetary_capacity <= 0:
-                    status = "REJECT"
-                    reason = f"Current portfolio heat {curr_heat_pct:.2%} meets or exceeds maximum limit {max_heat_pct:.2%}"
-                    state.add_rejection(reason)
-                else:
-                    new_budget = remaining_monetary_capacity
-                    state.add_warning(
-                        f"Reduced risk budget from ${proposed_budget:,.2f} to ${new_budget:,.2f} due to portfolio heat cap ({max_heat_pct:.2%})"
-                    )
-                    state.adjusted_risk_budget = new_budget
-                    projected_heat_pct = (curr_heat_monetary + new_budget) / equity
-                    status = "PASS"
-                    reason = f"Cap applied: risk budget reduced to ${new_budget:,.2f} to keep heat at {projected_heat_pct:.2%}"
-
+        projected_heat_pct = (existing_risk + new_permitted) / equity
         state.projected_portfolio_heat = projected_heat_pct
 
-        msg = f"Current Heat = {curr_heat_pct:.2%}, Projected Heat = {projected_heat_pct:.2%}, Limit = {max_heat_pct:.2%}, Status = {status}"
+        if heat_capacity <= 0:
+            status = "REJECT"
+            reason = f"Current portfolio heat ({current_heat_pct:.2%}) meets or exceeds maximum limit ({max_heat_pct:.2%})"
+            state.add_rejection(reason)
+        elif new_permitted < prev_permitted:
+            status = "PASS"
+            reason = f"Portfolio heat constraint reduced permitted risk from ${prev_permitted:,.2f} to ${new_permitted:,.2f} (capacity = ${heat_capacity:,.2f})"
+            state.add_warning(reason)
+        else:
+            status = "PASS"
+            reason = f"Portfolio heat capacity (${heat_capacity:,.2f}) satisfies requested permitted risk (${new_permitted:,.2f})"
+
+        msg = f"Current Heat = {current_heat_pct:.2%}, Capacity = ${heat_capacity:,.2f}, Permitted Risk: ${prev_permitted:,.2f} -> ${new_permitted:,.2f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

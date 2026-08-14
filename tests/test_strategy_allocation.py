@@ -36,7 +36,8 @@ class TestStrategyAllocationModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.strategy_multiplier, 0.50)
@@ -58,7 +59,8 @@ class TestStrategyAllocationModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.adjusted_risk_budget, 500.0)

@@ -31,7 +31,8 @@ class TestDrawdownGovernorModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=self.config,
-            adjusted_risk_budget=500.0,
+            governed_risk_budget=500.0,
+            permitted_risk_budget=500.0,
         )
         self.module = DrawdownGovernorModule()
 

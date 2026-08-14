@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.trade_candidate import TradeCandidate
@@ -37,7 +38,7 @@ class ModuleResult:
 class CapitalManagementState:
     """
     Mutable state object passed along the capital management pipeline.
-    Preserves all inputs, intermediate calculations, step metrics, and logs.
+    Preserves all inputs, intermediate calculations, step metrics, capacities, and logs.
     """
     # Inputs
     account: AccountState
@@ -45,12 +46,23 @@ class CapitalManagementState:
     trade: TradeCandidate
     market_data: MarketData
     config: CapitalManagementConfig
+    instrument: Optional[InstrumentSpec] = None
 
-    # Risk Budget Calculations
+    # Explicit Risk Budget Stages
     base_risk_budget: float = 0.0
     requested_risk_budget: float = 0.0
     requested_risk_pct: float = 0.0
-    adjusted_risk_budget: float = 0.0
+    governed_risk_budget: float = 0.0
+
+    # Constraint Risk Capacities
+    trade_risk_capacity: float = float("inf")
+    portfolio_heat_capacity: float = float("inf")
+    correlation_risk_capacity: float = float("inf")
+    factor_risk_capacity: float = float("inf")
+    stress_risk_capacity: float = float("inf")
+
+    # Final Permitted Risk Budget
+    permitted_risk_budget: float = 0.0
 
     # Conviction Metrics
     long_conviction: Any = 0.0
@@ -61,6 +73,7 @@ class CapitalManagementState:
     conviction_multiplier: Any = 1.0
     conflict_multiplier: Any = 1.0
 
+    # Governor Multipliers
     drawdown_multiplier: float = 1.0
     volatility_multiplier: float = 1.0
     strategy_multiplier: float = 1.0
@@ -73,7 +86,6 @@ class CapitalManagementState:
     # Correlation Metrics
     correlation_adjusted_risk: float = 0.0
     projected_correlation_adjusted_risk: float = 0.0
-    correlation_risk_capacity: float = 0.0
 
     # Factor Exposure Metrics
     factor_exposure: Dict[str, float] = field(default_factory=dict)
@@ -86,10 +98,12 @@ class CapitalManagementState:
     stop_distance: float = 0.0
     stop_distance_pct: float = 0.0
     stop_method: str = "price"
+    monetary_risk_per_unit: float = 0.0
 
-    # Position Size Metrics
+    # Sizing & Execution Metrics
     raw_position_size: float = 0.0
     rounded_position_size: float = 0.0
+    executable_position_size: float = 0.0
 
     # Cost Metrics
     estimated_spread_cost: float = 0.0
@@ -103,6 +117,11 @@ class CapitalManagementState:
     stress_loss: float = 0.0
     stress_loss_pct: float = 0.0
 
+    # Actual Reconciled Risk Outputs
+    actual_stop_loss_risk: float = 0.0
+    actual_transaction_cost: float = 0.0
+    actual_total_risk: float = 0.0
+
     # Final Gate Output Metrics
     final_position_size: float = 0.0
     final_risk: float = 0.0
@@ -114,6 +133,21 @@ class CapitalManagementState:
     warnings: List[str] = field(default_factory=list)
     rejection_reasons: List[str] = field(default_factory=list)
     trace_logs: List[str] = field(default_factory=list)
+
+    @property
+    def adjusted_risk_budget(self) -> float:
+        """
+        Backward-compatibility alias returning governed_risk_budget or permitted_risk_budget.
+        """
+        return self.governed_risk_budget
+
+    @adjusted_risk_budget.setter
+    def adjusted_risk_budget(self, val: float) -> None:
+        """
+        Backward-compatibility setter updating governed_risk_budget and permitted_risk_budget.
+        """
+        self.governed_risk_budget = val
+        self.permitted_risk_budget = val
 
     def add_trace(self, tag: str, message: str) -> None:
         """

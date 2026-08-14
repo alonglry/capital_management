@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 """
-Module 7 — Factor Exposure.
+Module 8 — Factor Risk.
 """
 
 from typing import Any, Dict, List
@@ -7,15 +9,12 @@ from typing import Any, Dict, List
 from capital_management.models.portfolio import Position
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.models.trade_candidate import TradeCandidate
-from capital_management.modules.base_module import BaseRiskModule
+from capital_management.modules.base_module import RiskConstraint
 
 
-class FactorExposureModule(BaseRiskModule):
+class FactorExposureModule(RiskConstraint):
     """
-    Module 7: Evaluates portfolio factor exposures for Forex currencies and Equity factors.
-
-    Recognizes multi-pair net currency factor positioning (e.g. EURUSD Long + GBPUSD Long -> USD = -2.0)
-    as well as equity sector weight, beta, and country limits.
+    Module 8: Hard risk constraint computing factor-risk capacity for currency factors and equity factors.
     """
 
     @property
@@ -31,6 +30,8 @@ class FactorExposureModule(BaseRiskModule):
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
+            "factor_risk_capacity": state.factor_risk_capacity,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "current_factor_exposure": state.current_factor_exposure,
             "projected_factor_exposure": state.projected_factor_exposure,
             "factor_limit_utilization": state.factor_limit_utilization,
@@ -38,30 +39,23 @@ class FactorExposureModule(BaseRiskModule):
         }
 
     def _extract_factors(self, item: Position | TradeCandidate, equity: float) -> Dict[str, float]:
-        """
-        Extracts factor exposures for a position or trade candidate.
-        """
         factors: Dict[str, float] = {}
 
-        # 1. Currency exposure dict (if explicitly provided)
         if item.currency_exposure:
             scale = item.quantity if isinstance(item, Position) else 1.0
             for ccy, weight in item.currency_exposure.items():
                 factors[ccy] = factors.get(ccy, 0.0) + (weight * scale)
-        elif item.asset_class.lower() == "forex" and len(item.symbol) == 6:
-            # Automatic standard 6-character FX symbol decomposition (e.g. EURUSD)
+        elif item.asset_class.upper() == "FOREX" and len(item.symbol) >= 6:
             base_ccy = item.symbol[:3].upper()
-            quote_ccy = item.symbol[3:].upper()
+            quote_ccy = item.symbol[3:6].upper()
             direction = 1.0 if item.side.lower() == "long" else -1.0
             scale = item.quantity if isinstance(item, Position) else 1.0
             factors[base_ccy] = factors.get(base_ccy, 0.0) + (direction * scale)
             factors[quote_ccy] = factors.get(quote_ccy, 0.0) - (direction * scale)
         else:
-            # Equity position weight estimation
             if isinstance(item, Position):
                 pos_val = item.quantity * item.current_price
             else:
-                # TradeCandidate weight estimation
                 stop_dist = abs(item.entry_price - item.proposed_stop_price)
                 est_shares = (equity * 0.005) / stop_dist if stop_dist > 0 else 0.0
                 pos_val = est_shares * item.entry_price
@@ -110,6 +104,25 @@ class FactorExposureModule(BaseRiskModule):
 
         state.factor_limit_utilization = utilization
 
+        # Compute factor capacity
+        factor_capacity = float("inf")
+        for factor, val_cand in cand_factors.items():
+            if factor in limits and limits[factor] > 0:
+                limit_val = limits[factor]
+                curr_val = current_exposures.get(factor, 0.0)
+                rem_capacity_units = max(0.0, limit_val - abs(curr_val))
+                if abs(val_cand) > 0:
+                    scale_factor = rem_capacity_units / abs(val_cand)
+                    factor_capacity = min(factor_capacity, state.permitted_risk_budget * scale_factor)
+
+        if factor_capacity == float("inf"):
+            factor_capacity = state.permitted_risk_budget
+
+        state.factor_risk_capacity = factor_capacity
+        prev_permitted = state.permitted_risk_budget
+        new_permitted = min(prev_permitted, factor_capacity)
+        state.permitted_risk_budget = new_permitted
+
         if exceeded:
             state.factor_constraint_status = "REJECT"
             status = "REJECT"
@@ -119,11 +132,11 @@ class FactorExposureModule(BaseRiskModule):
         else:
             state.factor_constraint_status = "PASS"
             status = "PASS"
-            reason = "All factor exposures are within configured limits"
+            reason = f"All factor exposures within limits (factor capacity = ${factor_capacity:,.2f})"
 
         state.factor_exposure = projected_exposures
 
-        msg = f"Projected Factors = {projected_exposures}, Status = {status}"
+        msg = f"Factor Capacity = ${factor_capacity:,.2f}, Permitted Risk: ${prev_permitted:,.2f} -> ${new_permitted:,.2f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

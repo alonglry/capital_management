@@ -1,22 +1,23 @@
 """
-Module 6 — Correlation-Adjusted Portfolio Risk.
+Module 7 — Correlation Risk.
 """
 
 import math
 from typing import Any, Dict, List, Tuple
 
+import numpy as np
+
 from capital_management.models.state import CapitalManagementState, ModuleResult
-from capital_management.modules.base_module import BaseRiskModule
+from capital_management.modules.base_module import RiskConstraint
 
 
-class CorrelationRiskModule(BaseRiskModule):
+class CorrelationRiskModule(RiskConstraint):
     """
-    Module 6: Calculates correlation-adjusted portfolio risk using matrix math.
+    Module 7: Hard risk constraint computing maximum correlation-adjusted risk capacity via quadratic variance solver.
 
-    Formula:
-        r = vector of percentage-of-equity risks [r1, r2, ..., r_candidate]
-        Sigma = correlation matrix
-        R_portfolio = sqrt(r^T * Sigma * r)
+    Projected Portfolio Variance:
+        V(x) = r' * Sigma * r + 2 * x * (c' * r) + x^2
+    Solves x^2 + 2(c'r)x + (r'Sigma r - max_risk^2) <= 0 for positive root x*.
     """
 
     @property
@@ -28,39 +29,80 @@ class CorrelationRiskModule(BaseRiskModule):
         return {
             "symbols": symbols,
             "max_correlation_adjusted_risk_pct": state.config.max_correlation_adjusted_risk_pct,
-            "fallback_policy": state.config.correlation_fallback_policy,
+            "invalid_correlation_policy": state.config.invalid_correlation_policy,
+            "missing_correlation_policy": state.config.missing_correlation_policy,
         }
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
+            "correlation_risk_capacity": state.correlation_risk_capacity,
+            "permitted_risk_budget": state.permitted_risk_budget,
             "correlation_adjusted_risk": state.correlation_adjusted_risk,
             "projected_correlation_adjusted_risk": state.projected_correlation_adjusted_risk,
-            "correlation_risk_capacity": state.correlation_risk_capacity,
         }
 
-    def _build_correlation_matrix(
-        self, symbols: List[str], state: CapitalManagementState
-    ) -> Tuple[List[List[float]], bool]:
+    def _validate_and_repair_matrix(
+        self, matrix: np.ndarray, state: CapitalManagementState
+    ) -> Tuple[np.ndarray, bool, str]:
         """
-        Constructs correlation matrix for symbols or applies configured fallback policy.
+        Validates correlation matrix properties:
+        1. Square, 2. Symmetric, 3. Diagonal == 1, 4. Elements in [-1, 1], 5. Positive Semidefinite.
+        """
+        n, m = matrix.shape
+        if n != m:
+            return matrix, False, f"Matrix is not square ({n}x{m})"
 
-        Returns:
-            (matrix, is_fallback_used)
-        """
+        if not np.allclose(matrix, matrix.T, atol=1e-4):
+            return matrix, False, "Matrix is not symmetric"
+
+        if not np.allclose(np.diag(matrix), 1.0, atol=1e-3):
+            return matrix, False, "Matrix diagonal elements do not equal 1.0"
+
+        if np.any(matrix < -1.0 - 1e-4) or np.any(matrix > 1.0 + 1e-4):
+            return matrix, False, "Matrix elements fall outside [-1.0, 1.0]"
+
+        eigvals = np.linalg.eigvalsh(matrix)
+        if np.min(eigvals) < -1e-4:
+            policy = state.config.invalid_correlation_policy.lower()
+            if policy == "repair":
+                # Nearest PSD projection
+                vals, vecs = np.linalg.eigh(matrix)
+                vals = np.maximum(vals, 1e-6)
+                repaired = vecs @ np.diag(vals) @ vecs.T
+                # Rescale diagonal to 1.0
+                d = np.sqrt(np.diag(repaired))
+                repaired = repaired / np.outer(d, d)
+                state.add_warning("Correlation matrix was non-PSD; repaired using nearest PSD projection.")
+                return repaired, True, "Repaired non-PSD matrix"
+            else:
+                return matrix, False, f"Matrix is not positive semidefinite (min eigenvalue = {np.min(eigvals):.6f})"
+
+        return matrix, True, "Valid"
+
+    def _extract_correlation_matrix(
+        self, symbols: List[str], state: CapitalManagementState
+    ) -> Tuple[np.ndarray, bool, str]:
         raw_matrix = state.market_data.correlation_matrix
+        policy = state.config.missing_correlation_policy.lower()
+        if policy not in ("assume_zero", "repair") and state.config.correlation_fallback_policy.lower() == "assume_zero_correlation":
+            policy = "assume_zero"
         n = len(symbols)
+        if n == 1:
+            return np.array([[1.0]], dtype=np.float64), True, "Single trade (self correlation 1.0)"
 
         if not raw_matrix:
-            return self._apply_matrix_fallback(n, state)
+            if policy == "assume_zero":
+                state.add_warning("Missing correlation matrix; using assume_zero fallback (identity matrix).")
+                return np.eye(n), True, "Assume zero correlation"
+            return np.eye(n), False, "Missing correlation matrix data"
 
-        # Check if all pairs are present
-        matrix = [[0.0] * n for _ in range(n)]
+        matrix = np.zeros((n, n), dtype=np.float64)
         missing = False
 
         for i in range(n):
             for j in range(n):
                 if i == j:
-                    matrix[i][j] = 1.0
+                    matrix[i, j] = 1.0
                 else:
                     sym_i = symbols[i]
                     sym_j = symbols[j]
@@ -70,109 +112,114 @@ class CorrelationRiskModule(BaseRiskModule):
                     if val is None:
                         missing = True
                         break
-                    matrix[i][j] = float(val)
+                    matrix[i, j] = float(val)
             if missing:
                 break
 
         if missing:
-            return self._apply_matrix_fallback(n, state)
+            if policy == "assume_zero":
+                state.add_warning("Incomplete correlation matrix; using assume_zero fallback.")
+                return np.eye(n), True, "Incomplete matrix (assume zero)"
+            return np.eye(n), False, "Incomplete correlation matrix for required symbols"
 
-        return matrix, False
-
-    def _apply_matrix_fallback(
-        self, n: int, state: CapitalManagementState
-    ) -> Tuple[List[List[float]], bool]:
-        policy = state.config.correlation_fallback_policy
-
-        if policy == "assume_max_correlation":
-            state.add_warning("Correlation matrix unavailable; using assume_max_correlation (all corr = 1.0).")
-            return [[1.0] * n for _ in range(n)], True
-        elif policy == "assume_zero_correlation":
-            state.add_warning("Correlation matrix unavailable; using assume_zero_correlation (identity matrix).")
-            matrix = [[0.0] * n for _ in range(n)]
-            for i in range(n):
-                matrix[i][i] = 1.0
-            return matrix, True
-        else:
-            # For 'ignore_module' or 'reject', handle at caller level
-            matrix = [[0.0] * n for _ in range(n)]
-            for i in range(n):
-                matrix[i][i] = 1.0
-            return matrix, True
-
-    def _calc_portfolio_risk(self, r: List[float], Sigma: List[List[float]]) -> float:
-        """
-        Computes sqrt(r^T * Sigma * r).
-        """
-        n = len(r)
-        variance = 0.0
-        for i in range(n):
-            for j in range(n):
-                variance += r[i] * Sigma[i][j] * r[j]
-        return math.sqrt(max(0.0, variance))
+        return self._validate_and_repair_matrix(matrix, state)
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         equity = state.account.equity
         if equity <= 0:
-            return state
-
-        policy = state.config.correlation_fallback_policy
-        raw_matrix = state.market_data.correlation_matrix
-
-        if not raw_matrix and policy == "reject":
-            state.add_rejection("Correlation matrix is missing and fallback policy is set to 'reject'.")
+            state.add_rejection("Account equity is non-positive for correlation risk calculation.")
+            state.correlation_risk_capacity = 0.0
+            state.permitted_risk_budget = 0.0
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
                 enabled=True,
                 input_summary=self._get_input_summary(state),
                 output_summary=self._get_output_summary(state),
                 status="REJECT",
-                reason="Correlation data unavailable (fallback policy = reject).",
+                reason="Account equity is non-positive",
             )
             return state
 
-        if not raw_matrix and policy == "ignore_module":
-            state.add_warning("Correlation data unavailable; skipping correlation module check.")
+        existing_positions = state.portfolio
+        symbols = [p.symbol for p in existing_positions] + [state.trade.symbol]
+        n_existing = len(existing_positions)
+
+        Sigma, is_valid, msg_matrix = self._extract_correlation_matrix(symbols, state)
+
+        if not is_valid:
+            state.add_rejection(f"Invalid or missing correlation matrix: {msg_matrix}")
+            state.correlation_risk_capacity = 0.0
+            state.permitted_risk_budget = 0.0
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
                 enabled=True,
                 input_summary=self._get_input_summary(state),
                 output_summary=self._get_output_summary(state),
-                status="SKIPPED",
-                reason="Correlation data unavailable (fallback policy = ignore_module).",
+                status="REJECT",
+                reason=f"Correlation matrix error: {msg_matrix}",
             )
             return state
 
-        symbols = [p.symbol for p in state.portfolio] + [state.trade.symbol]
-        Sigma, is_fallback = self._build_correlation_matrix(symbols, state)
+        # Normalized risk vectors r (% of equity)
+        r_existing = np.array([p.monetary_risk_at_stop / equity for p in existing_positions], dtype=np.float64) if n_existing > 0 else np.array([], dtype=np.float64)
+        max_risk_pct = state.config.max_correlation_adjusted_risk_pct
 
-        # Risk vectors as % of equity
-        r_curr = [p.monetary_risk_at_stop / equity for p in state.portfolio]
-        r_cand = state.adjusted_risk_budget / equity
-        r_proj = r_curr + [r_cand]
+        if n_existing == 0:
+            # Single trade case: capacity = max_risk_pct * equity
+            corr_capacity = max_risk_pct * equity
+            curr_corr_risk_pct = 0.0
+        else:
+            Sigma_curr = Sigma[:n_existing, :n_existing]
+            c_vector = Sigma[:n_existing, n_existing]  # candidate correlation vector with existing
 
-        n_curr = len(r_curr)
-        Sigma_curr = [[Sigma[i][j] for j in range(n_curr)] for i in range(n_curr)] if n_curr > 0 else []
+            var_curr = float(r_existing.T @ Sigma_curr @ r_existing)
+            curr_corr_risk_pct = math.sqrt(max(0.0, var_curr))
 
-        curr_corr_risk_pct = self._calc_portfolio_risk(r_curr, Sigma_curr) if n_curr > 0 else 0.0
-        proj_corr_risk_pct = self._calc_portfolio_risk(r_proj, Sigma)
+            c_dot_r = float(c_vector @ r_existing)
+            c_term = c_dot_r
+            const_term = var_curr - (max_risk_pct ** 2)
 
-        limit_pct = state.config.max_correlation_adjusted_risk_pct
-        capacity_pct = max(0.0, limit_pct - curr_corr_risk_pct)
+            discriminant = (c_term ** 2) - const_term
 
+            if discriminant < 0:
+                # Portfolio already exceeds max correlation risk
+                x_star = 0.0
+            else:
+                x_star = -c_term + math.sqrt(discriminant)
+
+            corr_capacity = max(0.0, float(x_star * equity))
+
+        state.correlation_risk_capacity = corr_capacity
         state.correlation_adjusted_risk = curr_corr_risk_pct
+
+        prev_permitted = state.permitted_risk_budget
+        new_permitted = min(prev_permitted, corr_capacity)
+        state.permitted_risk_budget = new_permitted
+
+        # Calculate projected correlation risk after candidate addition
+        x_cand_pct = new_permitted / equity
+        if n_existing > 0:
+            r_proj = np.append(r_existing, x_cand_pct)
+            proj_var = float(r_proj.T @ Sigma @ r_proj)
+            proj_corr_risk_pct = math.sqrt(max(0.0, proj_var))
+        else:
+            proj_corr_risk_pct = x_cand_pct
+
         state.projected_correlation_adjusted_risk = proj_corr_risk_pct
-        state.correlation_risk_capacity = capacity_pct * equity
 
-        status = "PASS"
-        reason = f"Projected correlation-adjusted risk {proj_corr_risk_pct:.2%} <= limit {limit_pct:.2%}"
-
-        if proj_corr_risk_pct > limit_pct:
+        if corr_capacity <= 0:
             status = "REJECT"
-            reason = f"Projected correlation-adjusted risk {proj_corr_risk_pct:.2%} exceeds limit {limit_pct:.2%}"
+            reason = f"Existing portfolio correlation risk ({curr_corr_risk_pct:.2%}) meets or exceeds maximum limit ({max_risk_pct:.2%})"
             state.add_rejection(reason)
+        elif new_permitted < prev_permitted:
+            status = "PASS"
+            reason = f"Correlation capacity (${corr_capacity:,.2f}) constrained permitted risk from ${prev_permitted:,.2f} to ${new_permitted:,.2f}"
+            state.add_warning(reason)
+        else:
+            status = "PASS"
+            reason = f"Correlation risk capacity (${corr_capacity:,.2f}) satisfies requested permitted risk (${new_permitted:,.2f})"
 
-        msg = f"Curr Corr Risk = {curr_corr_risk_pct:.2%}, Proj Corr Risk = {proj_corr_risk_pct:.2%}, Limit = {limit_pct:.2%}, Status = {status}"
+        msg = f"Curr Corr Risk = {curr_corr_risk_pct:.2%}, Proj Corr Risk = {proj_corr_risk_pct:.2%}, Capacity = ${corr_capacity:,.2f}, Permitted Risk: ${prev_permitted:,.2f} -> ${new_permitted:,.2f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(
