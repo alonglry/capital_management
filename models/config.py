@@ -1,0 +1,177 @@
+"""
+Configuration data models for Capital Management Engine.
+"""
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
+
+@dataclass
+class DrawdownRule:
+    """
+    Tier rule for Drawdown Governor module.
+
+    Args:
+        min_dd (float): Minimum drawdown threshold (inclusive).
+        max_dd (float): Maximum drawdown threshold (exclusive).
+        multiplier (float): Risk budget multiplier (e.g. 0.75 for 25% reduction).
+    """
+    min_dd: float
+    max_dd: float
+    multiplier: float
+
+
+@dataclass
+class VolatilityRule:
+    """
+    Tier rule for Volatility Governor module based on ATR Ratio (Current ATR / Reference ATR).
+
+    Args:
+        min_ratio (float): Minimum ATR ratio threshold (inclusive).
+        max_ratio (float): Maximum ATR ratio threshold (exclusive).
+        multiplier (float): Risk budget multiplier.
+    """
+    min_ratio: float
+    max_ratio: float
+    multiplier: float
+
+
+@dataclass
+class ConvictionRiskConfig:
+    """
+    Configuration for Dynamic Conviction Risk Allocator module.
+
+    Args:
+        conviction_threshold_multiplier (float): Scalar multiplier for max conviction threshold (default 1.5).
+        min_multiplier (float): Conviction multiplier minimum bound at 0 strength (default 0.50).
+        max_multiplier (float): Conviction multiplier maximum bound at 1 strength (default 1.50).
+        conflict_penalty (float): Penalty factor applied to signal conflict (default 0.50).
+        mapping_type (str): Mapping function identifier ('linear' or 'power').
+        power_gamma (float): Exponent for power mapping (default 1.0).
+    """
+    conviction_threshold_multiplier: float = 1.5
+    min_multiplier: float = 0.50
+    max_multiplier: float = 1.50
+    conflict_penalty: float = 0.50
+    mapping_type: str = "linear"
+    power_gamma: float = 1.0
+
+
+def default_drawdown_rules() -> List[DrawdownRule]:
+    return [
+        DrawdownRule(min_dd=0.00, max_dd=0.05, multiplier=1.00),
+        DrawdownRule(min_dd=0.05, max_dd=0.10, multiplier=0.75),
+        DrawdownRule(min_dd=0.10, max_dd=0.15, multiplier=0.50),
+        DrawdownRule(min_dd=0.15, max_dd=0.20, multiplier=0.25),
+        DrawdownRule(min_dd=0.20, max_dd=float("inf"), multiplier=0.00),
+    ]
+
+
+def default_volatility_rules() -> List[VolatilityRule]:
+    return [
+        VolatilityRule(min_ratio=0.00, max_ratio=0.70, multiplier=0.75),
+        VolatilityRule(min_ratio=0.70, max_ratio=1.30, multiplier=1.00),
+        VolatilityRule(min_ratio=1.30, max_ratio=1.80, multiplier=0.75),
+        VolatilityRule(min_ratio=1.80, max_ratio=float("inf"), multiplier=0.50),
+    ]
+
+
+def default_modules_config() -> Dict[str, bool]:
+    return {
+        "base_risk": True,
+        "conviction_allocator": True,
+        "drawdown_governor": True,
+        "volatility_governor": True,
+        "strategy_allocation": True,
+        "portfolio_heat": True,
+        "correlation_check": True,
+        "factor_check": True,
+        "stop_risk": True,
+        "position_sizing": True,
+        "transaction_cost": True,
+        "stress_test": True,
+        "final_validation": True,
+    }
+
+
+def default_strategy_allocations() -> Dict[str, float]:
+    return {
+        "mean_reversion": 1.00,
+        "momentum": 0.75,
+        "breakout": 0.75,
+        "carry": 0.50,
+        "default": 1.00,
+    }
+
+
+def default_factor_limits() -> Dict[str, float]:
+    return {
+        "USD": 2.0,
+        "EUR": 2.0,
+        "GBP": 2.0,
+        "JPY": 2.0,
+        "AUD": 2.0,
+        "CAD": 2.0,
+        "CHF": 2.0,
+        "NZD": 2.0,
+        "market_beta": 1.5,
+        "Technology": 0.30,
+        "Financials": 0.30,
+    }
+
+
+def default_stress_limits() -> Dict[str, float]:
+    return {
+        "max_stress_risk_pct": 0.02,
+        "gap_pct": 0.01,
+        "extra_slippage_pct": 0.005,
+    }
+
+
+def default_transaction_costs() -> Dict[str, Any]:
+    return {
+        "default_spread": 0.0,
+        "default_commission": 0.0,
+        "default_slippage": 0.0,
+    }
+
+
+def default_rounding_rules() -> Dict[str, Any]:
+    return {
+        "equity": "floor_int",
+        "forex": "round_2dp",
+        "default": "round_2dp",
+    }
+
+
+@dataclass
+class CapitalManagementConfig:
+    """
+    Central configuration object for Capital Management Engine parameters and module toggles.
+    """
+    base_risk_pct: float = 0.005
+    max_trade_risk_pct: float = 0.0075
+    max_portfolio_heat_pct: float = 0.05
+    max_correlation_adjusted_risk_pct: float = 0.04
+    atr_multiplier: float = 1.5
+
+    heat_policy: str = "reduce"  # 'reduce' or 'reject'
+    correlation_fallback_policy: str = "assume_zero_correlation"  # 'reject', 'ignore_module', 'assume_max_correlation', 'assume_zero_correlation'
+    factor_fallback_policy: str = "reject"  # 'reject', 'reduce', 'ignore_module'
+    stress_policy: str = "reject"  # 'reject', 'reduce'
+
+    drawdown_rules: List[DrawdownRule] = field(default_factory=default_drawdown_rules)
+    volatility_rules: List[VolatilityRule] = field(default_factory=default_volatility_rules)
+    strategy_allocations: Dict[str, float] = field(default_factory=default_strategy_allocations)
+    factor_limits: Dict[str, float] = field(default_factory=default_factor_limits)
+    stress_limits: Dict[str, float] = field(default_factory=default_stress_limits)
+    transaction_cost_assumptions: Dict[str, Any] = field(default_factory=default_transaction_costs)
+    rounding_rules: Dict[str, Any] = field(default_factory=default_rounding_rules)
+    modules: Dict[str, bool] = field(default_factory=default_modules_config)
+    conviction_risk: ConvictionRiskConfig = field(default_factory=ConvictionRiskConfig)
+
+    def is_module_enabled(self, module_name: str) -> bool:
+        """
+        Checks whether a given risk module is enabled in configuration.
+        """
+        return self.modules.get(module_name, True)
