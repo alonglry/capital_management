@@ -6,6 +6,7 @@ import unittest
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.state import CapitalManagementState
 from capital_management.models.trade_candidate import TradeCandidate
@@ -30,12 +31,17 @@ class TestTransactionCostModule(unittest.TestCase):
             expected_slippage=0.10,
             strategy_id="momentum",
         )
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
             governed_risk_budget=500.0,
             permitted_risk_budget=500.0,
             stop_distance=5.0,

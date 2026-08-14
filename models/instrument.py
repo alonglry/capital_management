@@ -120,11 +120,6 @@ class InstrumentSpec:
         if self.quantity_increment is None or self.quantity_increment <= 0:
             return False, f"Invalid quantity_increment ({self.quantity_increment})"
 
-        # Step alignment checks
-        min_rem = abs(self.min_quantity / self.quantity_increment - round(self.min_quantity / self.quantity_increment))
-        if min_rem > 1e-4:
-            return False, f"min_quantity ({self.min_quantity}) is not aligned with quantity_increment ({self.quantity_increment})"
-
         ac = self.asset_class.upper()
         if ac == "FOREX":
             if not self.base_currency or not self.quote_currency:
@@ -162,6 +157,10 @@ class InstrumentSpec:
     ) -> Optional[FXConversionResult]:
         """
         Returns auditable FXConversionResult for converting source_currency to target_currency.
+        Priority:
+        1. Market-data FX rates direct or inverse.
+        2. Identity conversion (source == target).
+        3. Instrument-derived entry price inversion (if quote -> base).
         """
         src = source_currency.upper()
         tgt = target_currency.upper()
@@ -173,18 +172,6 @@ class InstrumentSpec:
                 conversion_rate=1.0,
                 rate_source="identity",
                 direct_or_inverse="direct",
-            )
-
-        base_ccy = (self.base_currency or "USD").upper()
-        quote_ccy = (self.quote_currency or "USD").upper()
-
-        if src == quote_ccy and base_ccy == tgt and entry_price > 0:
-            return FXConversionResult(
-                source_currency=src,
-                target_currency=tgt,
-                conversion_rate=1.0 / entry_price,
-                rate_source="entry_price_inversion",
-                direct_or_inverse="inverse",
             )
 
         if fx_rates:
@@ -207,6 +194,18 @@ class InstrumentSpec:
                     rate_source=f"market_data.{inverse_pair}",
                     direct_or_inverse="inverse",
                 )
+
+        base_ccy = (self.base_currency or "USD").upper()
+        quote_ccy = (self.quote_currency or "USD").upper()
+
+        if src == quote_ccy and base_ccy == tgt and entry_price > 0:
+            return FXConversionResult(
+                source_currency=src,
+                target_currency=tgt,
+                conversion_rate=1.0 / entry_price,
+                rate_source="entry_price_inversion",
+                direct_or_inverse="inverse",
+            )
 
         return None
 

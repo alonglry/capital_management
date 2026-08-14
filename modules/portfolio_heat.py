@@ -2,6 +2,7 @@
 Module 6 — Portfolio Heat.
 """
 
+import math
 from typing import Any, Dict
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
@@ -23,7 +24,7 @@ class PortfolioHeatModule(RiskConstraint):
         return "portfolio_heat"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
-        equity = state.account.equity
+        equity = state.risk_equity_snapshot
         curr_risk = sum(p.monetary_risk_at_stop for p in state.portfolio)
         curr_heat_pct = curr_risk / equity if equity > 0 else 0.0
         return {
@@ -43,7 +44,7 @@ class PortfolioHeatModule(RiskConstraint):
         }
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        equity = state.account.equity
+        equity = state.risk_equity_snapshot
         if equity <= 0:
             state.add_rejection("Account equity is non-positive for portfolio heat calculation.")
             state.portfolio_heat_capacity = 0.0
@@ -57,6 +58,21 @@ class PortfolioHeatModule(RiskConstraint):
                 reason="Account equity is non-positive",
             )
             return state
+
+        for p in state.portfolio:
+            if p.monetary_risk_at_stop < 0 or not math.isfinite(p.monetary_risk_at_stop):
+                state.add_rejection(f"Invalid negative or non-finite monetary risk at stop ({p.monetary_risk_at_stop}) for position {p.symbol}")
+                state.portfolio_heat_capacity = 0.0
+                state.permitted_risk_budget = 0.0
+                state.module_results[self.name] = ModuleResult(
+                    module_name=self.name,
+                    enabled=True,
+                    input_summary=self._get_input_summary(state),
+                    output_summary=self._get_output_summary(state),
+                    status="REJECT",
+                    reason=f"Invalid position monetary risk for {p.symbol}",
+                )
+                return state
 
         max_heat_pct = state.config.max_portfolio_heat_pct
         max_monetary_heat = equity * max_heat_pct

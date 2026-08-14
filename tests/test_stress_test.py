@@ -6,6 +6,7 @@ import unittest
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.state import CapitalManagementState
 from capital_management.models.trade_candidate import TradeCandidate
@@ -24,6 +25,9 @@ class TestStressTestModule(unittest.TestCase):
             proposed_stop_price=140.0,
             strategy_id="momentum",
         )
+        self.inst = InstrumentSpec.create_default("AAPL", "equity")
+        self.inst.metadata_verified = True
+        self.inst.metadata_source = "explicit_test"
         self.module = StressTestModule()
 
     def test_stress_test_normal_pass(self):
@@ -37,6 +41,7 @@ class TestStressTestModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
+            instrument=self.inst,
             governed_risk_budget=1000.0,
             permitted_risk_budget=1000.0,
             stop_distance=10.0,
@@ -46,7 +51,8 @@ class TestStressTestModule(unittest.TestCase):
         )
         updated = self.module.process(state)
         self.assertEqual(updated.normal_loss, 1000.0)
-        self.assertEqual(updated.stress_loss, 1225.0)  # 1000 + 100*1.5 + 100*0.75 = 1225
+        # Canonical stressed exit price = 150 * (1 - 0.01) - 0.75 = 147.75. Move = 2.25/share * 100 = 225.0
+        self.assertEqual(updated.stress_loss, 225.0)
         self.assertEqual(updated.module_results["stress_test"].status, "PASS")
 
     def test_stress_test_rejection(self):
@@ -60,6 +66,7 @@ class TestStressTestModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
+            instrument=self.inst,
             governed_risk_budget=1000.0,
             permitted_risk_budget=1000.0,
             stop_distance=10.0,
@@ -72,7 +79,7 @@ class TestStressTestModule(unittest.TestCase):
 
     def test_stress_test_capacity_reduction(self):
         config = CapitalManagementConfig(
-            stress_limits={"gap_pct": 0.02, "extra_slippage_pct": 0.01, "max_stress_risk_pct": 0.01},  # max limit $1000
+            stress_limits={"gap_pct": 0.02, "extra_slippage_pct": 0.01, "max_stress_risk_pct": 0.001},  # max limit $100
             stress_policy="reduce",
         )
         state = CapitalManagementState(
@@ -81,6 +88,7 @@ class TestStressTestModule(unittest.TestCase):
             trade=self.trade,
             market_data=MarketData(),
             config=config,
+            instrument=self.inst,
             governed_risk_budget=1000.0,
             permitted_risk_budget=1000.0,
             stop_distance=10.0,

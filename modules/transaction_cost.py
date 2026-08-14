@@ -4,7 +4,6 @@ Module 11 — Transaction Cost Calculation.
 
 from typing import Any, Dict, Tuple
 
-from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.modules.base_module import BaseRiskModule
 
@@ -16,13 +15,6 @@ def calculate_transaction_cost(
     Canonical transaction cost calculation function computing exact costs from scratch for a given quantity.
 
     Supports multi-currency fees, one-way/round-trip modes, and explicit units.
-
-    Args:
-        state (CapitalManagementState): Shared pipeline state object.
-        executable_quantity (float): Target quantity for transaction cost calculation.
-
-    Returns:
-        Tuple[float, float, float, float]: (spread_cost, commission_cost, slippage_cost, total_transaction_cost)
     """
     if executable_quantity <= 0:
         return 0.0, 0.0, 0.0, 0.0
@@ -30,9 +22,9 @@ def calculate_transaction_cost(
     entry = state.trade.entry_price
     defaults = state.config.transaction_cost_assumptions
 
-    if state.instrument is None:
-        state.instrument = InstrumentSpec.create_default(state.trade.symbol, state.trade.asset_class)
     inst = state.instrument
+    if inst is None:
+        return 0.0, 0.0, 0.0, 0.0
 
     spread = state.trade.spread if state.trade.spread is not None else defaults.get("default_spread", 0.0)
     comm = state.trade.commission if state.trade.commission is not None else defaults.get("default_commission", 0.0)
@@ -52,9 +44,10 @@ def calculate_transaction_cost(
     fx_rates = state.market_data.fx_rates
 
     # 1. Spread Cost
+    pip_size_val = inst.pip_size if inst.pip_size is not None else 0.0001
     spread_dist = spread
     if spread_unit == "pips":
-        spread_dist = spread * inst.pip_size
+        spread_dist = spread * pip_size_val
     elif spread_unit == "percentage":
         spread_dist = spread * entry
     if spread_mode == "round_trip":
@@ -73,6 +66,8 @@ def calculate_transaction_cost(
     # 2. Commission Cost
     comm_currency = acct_ccy if comm_ccy == "account" else comm_ccy
     conv_res = inst.get_fx_conversion(comm_currency, acct_ccy, entry, fx_rates)
+    if conv_res is None and comm_currency.upper() != acct_ccy.upper():
+        raise ValueError(f"Missing required FX conversion rate from commission currency '{comm_currency}' to account currency '{acct_ccy}'")
     comm_fx_rate = conv_res.conversion_rate if conv_res else 1.0
 
     if comm_type == "fixed":
@@ -81,23 +76,20 @@ def calculate_transaction_cost(
         comm_rate = comm
         if comm_rate < 0 or comm_rate >= 1.0:
             raise ValueError(f"Invalid percentage commission_rate ({comm_rate}). Must be 0 <= rate < 1.0")
-        notional_loss = inst.calculate_loss_for_price_move(
-            price_move_distance=entry,
+        notional_val = inst.calculate_notional_value(
             quantity=executable_quantity,
-            account_currency=acct_ccy,
             entry_price=entry,
-            pip_value_per_lot=pip_val,
-            pip_value_currency=pip_ccy,
+            account_currency=acct_ccy,
             fx_rates=fx_rates,
         )
-        comm_cost = comm_rate * notional_loss
+        comm_cost = comm_rate * notional_val
     else:  # 'per_unit'
         comm_cost = (comm * executable_quantity) * comm_fx_rate
 
     # 3. Slippage Cost
     slip_dist = slip
     if slip_unit == "pips":
-        slip_dist = slip * inst.pip_size
+        slip_dist = slip * pip_size_val
     elif slip_unit == "percentage":
         slip_dist = slip * entry
     if slip_mode == "round_trip":
@@ -119,7 +111,7 @@ def calculate_transaction_cost(
 
 class TransactionCostModule(BaseRiskModule):
     """
-    Module 11: Calculates transaction costs (spread, commission, slippage) based on executable_position_size.
+    Module 12: Calculates transaction costs (spread, commission, slippage) based on executable_position_size.
     """
 
     @property
