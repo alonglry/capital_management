@@ -62,8 +62,9 @@ class ActualRiskReconciliationModule(BaseRiskModule):
             state.final_position_size = 0.0
             state.executable_position_size = 0.0
             state.final_risk = 0.0
-            status = "PASS" if permitted == 0 else "REJECT"
+            status = "REJECT"
             reason = "Zero position size or non-positive permitted risk budget"
+            state.add_rejection(reason)
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
                 enabled=True,
@@ -76,14 +77,18 @@ class ActualRiskReconciliationModule(BaseRiskModule):
 
         # Recalculate transaction costs from scratch for exact quantity
         _, _, _, actual_tx_cost = calculate_transaction_cost(state, size)
-        actual_stop_risk = size * risk_per_unit
+        actual_stop_risk = inst.calculate_loss_for_price_move(
+            state.stop_distance, size, state.account.currency, state.trade.entry_price, state.trade.pip_value_per_lot, state.trade.pip_value_currency, state.market_data.fx_rates
+        ) if state.stop_distance > 0 else 0.0
         actual_total = actual_stop_risk + actual_tx_cost
 
         # Central Invariant Check: actual_total_risk <= permitted_risk_budget
         if actual_total > permitted + 1e-6:
             curr_size = size
             while curr_size >= min_qty:
-                stop_risk = curr_size * risk_per_unit
+                stop_risk = inst.calculate_loss_for_price_move(
+                    state.stop_distance, curr_size, state.account.currency, state.trade.entry_price, state.trade.pip_value_per_lot, state.trade.pip_value_currency, state.market_data.fx_rates
+                ) if state.stop_distance > 0 else 0.0
                 _, _, _, tx_cost = calculate_transaction_cost(state, curr_size)
                 tot_risk = stop_risk + tx_cost
                 if tot_risk <= permitted + 1e-6:
@@ -112,7 +117,9 @@ class ActualRiskReconciliationModule(BaseRiskModule):
                     f"stepped down executable position size from {size} to {curr_size}"
                 )
                 size = curr_size
-                actual_stop_risk = size * risk_per_unit
+                actual_stop_risk = inst.calculate_loss_for_price_move(
+                    state.stop_distance, size, state.account.currency, state.trade.entry_price, state.trade.pip_value_per_lot, state.trade.pip_value_currency, state.market_data.fx_rates
+                ) if state.stop_distance > 0 else 0.0
                 _, _, _, actual_tx_cost = calculate_transaction_cost(state, size)
                 actual_total = actual_stop_risk + actual_tx_cost
                 status = "PASS"
@@ -126,21 +133,8 @@ class ActualRiskReconciliationModule(BaseRiskModule):
         state.actual_stop_loss_risk = actual_stop_risk
         state.actual_transaction_cost = actual_tx_cost
         state.actual_total_risk = actual_total
-        # Section 5: final_risk MUST represent total effective risk (actual_total_risk)
         state.final_risk = actual_total
-
-        # Recalculate stress loss for final reconciled position size
-        if inst is not None and size > 0:
-            entry = state.trade.entry_price
-            stress_limits = state.config.stress_limits
-            gap_pct = stress_limits.get("gap_pct", 0.01)
-            extra_slip_pct = stress_limits.get("extra_slippage_pct", 0.005)
-            fx_rate = inst.get_fx_conversion_rate(state.account.currency, entry, state.market_data.fx_rates) or 1.0
-
-            gap_loss = (size * inst.contract_size * inst.point_value * (entry * gap_pct)) * fx_rate
-            slip_loss = (size * inst.contract_size * inst.point_value * (entry * extra_slip_pct)) * fx_rate
-            state.stress_loss = actual_stop_risk + actual_tx_cost + gap_loss + slip_loss
-            state.stress_loss_pct = state.stress_loss / state.account.equity if state.account.equity > 0 else 0.0
+        state.final_risk_pct = actual_total / state.account.equity if state.account.equity > 0 else 0.0
 
         msg = f"Reconciled Actual Total Risk = ${actual_total:,.2f} (Stop Risk = ${actual_stop_risk:,.2f}, Tx Cost = ${actual_tx_cost:,.2f}) <= Permitted = ${permitted:,.2f}, Size = {size}"
         state.add_trace(self.name, msg)

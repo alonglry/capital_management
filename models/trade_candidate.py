@@ -31,6 +31,7 @@ class TradeCandidate:
         commission (Optional[float]): Expected fixed or per-unit commission cost.
         spread (Optional[float]): Current bid-ask spread.
         pip_value_per_lot (Optional[float]): Monetary pip value for 1 standard lot (FX).
+        pip_value_currency (Optional[str]): Currency in which pip_value_per_lot is quoted.
         lot_size (Optional[float]): Base units per lot (default 100,000 for standard FX lot).
         point_value (Optional[float]): Monetary value per point move per unit/contract.
     """
@@ -52,6 +53,7 @@ class TradeCandidate:
     commission: Optional[float] = None
     spread: Optional[float] = None
     pip_value_per_lot: Optional[float] = None
+    pip_value_currency: Optional[str] = None
     lot_size: Optional[float] = None
     point_value: Optional[float] = None
 

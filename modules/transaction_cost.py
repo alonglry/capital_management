@@ -15,7 +15,7 @@ def calculate_transaction_cost(
     """
     Canonical transaction cost calculation function computing exact costs from scratch for a given quantity.
 
-    Supports linear per-unit costs, fixed order fees, and percentage/notional costs.
+    Supports multi-currency fees, one-way/round-trip modes, and explicit units.
 
     Args:
         state (CapitalManagementState): Shared pipeline state object.
@@ -37,50 +37,81 @@ def calculate_transaction_cost(
     spread = state.trade.spread if state.trade.spread is not None else defaults.get("default_spread", 0.0)
     comm = state.trade.commission if state.trade.commission is not None else defaults.get("default_commission", 0.0)
     slip = state.trade.expected_slippage if state.trade.expected_slippage is not None else defaults.get("default_slippage", 0.0)
+
+    spread_unit = defaults.get("spread_unit", "price").lower()
+    spread_mode = defaults.get("spread_cost_mode", "one_way").lower()
     slip_unit = state.config.slippage_unit.lower()
+    slip_mode = defaults.get("slippage_cost_mode", "one_way").lower()
+
     comm_type = defaults.get("commission_type", "per_unit").lower()
+    comm_ccy = defaults.get("commission_currency", "account")
+    acct_ccy = state.account.currency
 
-    # Get FX conversion multiplier for native quote currency to account currency
-    fx_rate = inst.get_fx_conversion_rate(state.account.currency, entry, state.market_data.fx_rates)
-    if fx_rate is None:
-        fx_rate = 1.0
+    pip_val = state.trade.pip_value_per_lot
+    pip_ccy = state.trade.pip_value_currency
+    fx_rates = state.market_data.fx_rates
 
-    # 1. Spread cost calculation
-    ac = inst.asset_class.upper()
-    if ac == "FOREX" and state.trade.pip_value_per_lot and state.trade.pip_value_per_lot > 0:
-        pip_val = state.trade.pip_value_per_lot
-        pip_size = inst.pip_size
-        spread_pips = spread / pip_size if spread > 0 else 0.0
-        # If quote currency != account currency and pip_val is native
-        if inst.quote_currency.upper() != state.account.currency.upper():
-            spread_cost = (spread_pips * pip_val * executable_quantity) * fx_rate
-        else:
-            spread_cost = spread_pips * pip_val * executable_quantity
-    else:
-        spread_cost = (spread * inst.point_value * inst.contract_size * executable_quantity) * fx_rate
+    # 1. Spread Cost
+    spread_dist = spread
+    if spread_unit == "pips":
+        spread_dist = spread * inst.pip_size
+    elif spread_unit == "percentage":
+        spread_dist = spread * entry
+    if spread_mode == "round_trip":
+        spread_dist *= 2.0
 
-    # 2. Commission cost calculation (per_unit, fixed, percentage)
+    spread_cost = inst.calculate_loss_for_price_move(
+        price_move_distance=spread_dist,
+        quantity=executable_quantity,
+        account_currency=acct_ccy,
+        entry_price=entry,
+        pip_value_per_lot=pip_val,
+        pip_value_currency=pip_ccy,
+        fx_rates=fx_rates,
+    )
+
+    # 2. Commission Cost
+    comm_currency = acct_ccy if comm_ccy == "account" else comm_ccy
+    conv_res = inst.get_fx_conversion(comm_currency, acct_ccy, entry, fx_rates)
+    comm_fx_rate = conv_res.conversion_rate if conv_res else 1.0
+
     if comm_type == "fixed":
-        comm_cost = comm * fx_rate
+        comm_cost = comm * comm_fx_rate
     elif comm_type == "percentage":
-        notional_value = executable_quantity * entry * inst.contract_size * inst.point_value
-        comm_cost = (comm * notional_value) * fx_rate
+        comm_rate = comm
+        if comm_rate < 0 or comm_rate >= 1.0:
+            raise ValueError(f"Invalid percentage commission_rate ({comm_rate}). Must be 0 <= rate < 1.0")
+        notional_loss = inst.calculate_loss_for_price_move(
+            price_move_distance=entry,
+            quantity=executable_quantity,
+            account_currency=acct_ccy,
+            entry_price=entry,
+            pip_value_per_lot=pip_val,
+            pip_value_currency=pip_ccy,
+            fx_rates=fx_rates,
+        )
+        comm_cost = comm_rate * notional_loss
     else:  # 'per_unit'
-        comm_cost = (comm * executable_quantity) * fx_rate
+        comm_cost = (comm * executable_quantity) * comm_fx_rate
 
-    # 3. Slippage cost conversion based on explicit unit
+    # 3. Slippage Cost
+    slip_dist = slip
     if slip_unit == "pips":
-        pip_size = inst.pip_size
-        if ac == "FOREX" and state.trade.pip_value_per_lot and state.trade.pip_value_per_lot > 0:
-            slip_cost = (slip * state.trade.pip_value_per_lot * executable_quantity)
-            if inst.quote_currency.upper() != state.account.currency.upper():
-                slip_cost *= fx_rate
-        else:
-            slip_cost = (slip * pip_size * inst.point_value * inst.contract_size * executable_quantity) * fx_rate
-    elif slip_unit == "price":
-        slip_cost = (slip * inst.point_value * inst.contract_size * executable_quantity) * fx_rate
-    else:  # 'percentage'
-        slip_cost = ((slip * entry) * inst.point_value * inst.contract_size * executable_quantity) * fx_rate
+        slip_dist = slip * inst.pip_size
+    elif slip_unit == "percentage":
+        slip_dist = slip * entry
+    if slip_mode == "round_trip":
+        slip_dist *= 2.0
+
+    slip_cost = inst.calculate_loss_for_price_move(
+        price_move_distance=slip_dist,
+        quantity=executable_quantity,
+        account_currency=acct_ccy,
+        entry_price=entry,
+        pip_value_per_lot=pip_val,
+        pip_value_currency=pip_ccy,
+        fx_rates=fx_rates,
+    )
 
     total_tx_cost = spread_cost + comm_cost + slip_cost
     return spread_cost, comm_cost, slip_cost, total_tx_cost
@@ -89,8 +120,6 @@ def calculate_transaction_cost(
 class TransactionCostModule(BaseRiskModule):
     """
     Module 11: Calculates transaction costs (spread, commission, slippage) based on executable_position_size.
-
-    Supports explicit slippage units: 'price', 'pips', 'percentage' and non-linear cost models.
     """
 
     @property

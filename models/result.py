@@ -3,7 +3,8 @@ Final Capital Management Result data model.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from capital_management.models.state import ModuleResult
 
@@ -62,6 +63,9 @@ class CapitalManagementResult:
     calculation_trace: List[str] = field(default_factory=list)
     binding_constraints: List[str] = field(default_factory=list)
 
+    engine_version: str = "2.1.0"
+    as_of_timestamp: Optional[str] = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
     @property
     def correlation_adjusted_stop_risk_pct(self) -> float:
         """
@@ -109,6 +113,8 @@ class CapitalManagementResult:
             "rejection_reasons": self.rejection_reasons,
             "warnings": self.warnings,
             "binding_constraints": self.binding_constraints,
+            "engine_version": self.engine_version,
+            "as_of_timestamp": self.as_of_timestamp,
             "module_results": {
                 name: {
                     "module_name": res.module_name,

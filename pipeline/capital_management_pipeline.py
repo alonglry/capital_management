@@ -32,6 +32,7 @@ from capital_management.modules.volatility_governor import VolatilityGovernorMod
 def default_pipeline_modules() -> List[BaseRiskModule]:
     """
     Returns default standard sequence of 14 risk modules.
+    Ensures pre-sizing constraints (PortfolioHeat, Correlation, Factor, Stress) run BEFORE PositionSizing.
     """
     return [
         BaseRiskBudgetModule(),
@@ -39,13 +40,13 @@ def default_pipeline_modules() -> List[BaseRiskModule]:
         DrawdownGovernorModule(),
         VolatilityGovernorModule(),
         StrategyAllocationModule(),
+        StopRiskModule(),
         PortfolioHeatModule(),
         CorrelationRiskModule(),
         FactorExposureModule(),
-        StopRiskModule(),
+        StressTestModule(),
         PositionSizingModule(),
         TransactionCostModule(),
-        StressTestModule(),
         ActualRiskReconciliationModule(),
         FinalValidationModule(),
     ]
@@ -79,15 +80,14 @@ class CapitalManagementPipeline:
             idx_sizing = names.index("position_sizing")
             if "stop_risk" in names and names.index("stop_risk") > idx_sizing:
                 raise ValueError("Dependency Error: Module 'position_sizing' cannot execute before 'stop_risk'")
+            if "stress_test" in names and names.index("stress_test") > idx_sizing:
+                raise ValueError("Dependency Error: Pre-sizing constraint 'stress_test' should execute before 'position_sizing'")
         if "transaction_cost" in names and "position_sizing" in names:
             if names.index("transaction_cost") < names.index("position_sizing"):
                 raise ValueError("Dependency Error: Module 'transaction_cost' cannot execute before 'position_sizing'")
         if "risk_reconciliation" in names and "position_sizing" in names:
             if names.index("risk_reconciliation") < names.index("position_sizing"):
                 raise ValueError("Dependency Error: Module 'risk_reconciliation' cannot execute before 'position_sizing'")
-        if "final_validation" in names and names[-1] != "final_validation":
-            # Warning or non-fatal, but validation should be last
-            pass
 
     def run(
         self,

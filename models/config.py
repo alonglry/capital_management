@@ -88,7 +88,9 @@ def default_modules_config() -> Dict[str, bool]:
         "volatility_governor": True,
         "strategy_allocation": True,
         "portfolio_heat": True,
+        "correlation_risk": True,
         "correlation_check": True,
+        "factor_exposure": True,
         "factor_check": True,
         "stop_risk": True,
         "position_sizing": True,
@@ -138,6 +140,12 @@ def default_transaction_costs() -> Dict[str, Any]:
         "default_commission": 0.0,
         "default_slippage": 0.0,
         "commission_type": "per_unit",  # 'per_unit', 'fixed', 'percentage'
+        "commission_rate_basis": 0.001,  # 0.001 = 10 bps
+        "commission_currency": "account",
+        "spread_unit": "price",  # 'price', 'pips', 'percentage'
+        "spread_cost_mode": "one_way",  # 'one_way', 'round_trip'
+        "slippage_unit": "percentage",  # 'price', 'pips', 'percentage'
+        "slippage_cost_mode": "one_way",  # 'one_way', 'round_trip'
     }
 
 
@@ -168,7 +176,8 @@ class CapitalManagementConfig:
     factor_fallback_policy: str = "reject"  # 'reject', 'reduce', 'ignore_module'
     stress_policy: str = "reject"  # 'reject', 'reduce'
     slippage_unit: str = "percentage"  # 'price', 'pips', 'percentage'
-    require_verified_instrument_metadata: str = "reject"  # 'reject' or 'allow_legacy'
+    require_verified_instrument_metadata: str = "allow_legacy"  # 'reject' or 'allow_legacy'
+    transaction_costs_verified: str = "allowed"  # 'required' or 'allowed'
 
     drawdown_rules: List[DrawdownRule] = field(default_factory=default_drawdown_rules)
     volatility_rules: List[VolatilityRule] = field(default_factory=default_volatility_rules)
@@ -195,5 +204,10 @@ class CapitalManagementConfig:
     def is_module_enabled(self, module_name: str) -> bool:
         """
         Checks whether a given risk module is enabled in configuration.
+        Supports canonical key aliases ('correlation_risk' / 'correlation_check', 'factor_exposure' / 'factor_check').
         """
+        if module_name in ("correlation_risk", "correlation_check"):
+            return self.modules.get("correlation_risk", self.modules.get("correlation_check", True))
+        if module_name in ("factor_exposure", "factor_check"):
+            return self.modules.get("factor_exposure", self.modules.get("factor_check", True))
         return self.modules.get(module_name, True)

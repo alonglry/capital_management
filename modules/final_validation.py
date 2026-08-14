@@ -11,7 +11,7 @@ from capital_management.modules.base_module import BaseRiskModule
 
 class FinalValidationModule(BaseRiskModule):
     """
-    Module 14: Final risk validation gate enforcing explicit safety conditions.
+    Module 14: Final risk validation gate enforcing explicit safety conditions and idempotency.
     """
 
     @property
@@ -67,6 +67,13 @@ class FinalValidationModule(BaseRiskModule):
 
         state.binding_constraints = binding
 
+        # Check prior module rejections to ensure terminal rejection propagation
+        for m_name, m_res in state.module_results.items():
+            if m_name != self.name and m_res.status in ("REJECT", "FAIL"):
+                err_msg = f"Upstream hard rejection in module '{m_name}': {m_res.reason}"
+                if err_msg not in state.rejection_reasons:
+                    state.add_rejection(err_msg)
+
         # 1. Entry price valid
         if entry <= 0 or math.isnan(entry) or math.isinf(entry):
             state.add_rejection(f"Invalid entry price ({entry})")
@@ -93,6 +100,10 @@ class FinalValidationModule(BaseRiskModule):
                 inc_rem = abs(size / inst.quantity_increment - round(size / inst.quantity_increment))
                 if inc_rem > 1e-4:
                     state.add_rejection(f"Position quantity ({size}) does not respect quantity increment ({inst.quantity_increment})")
+
+            # Instrument verification check
+            if state.config.require_verified_instrument_metadata == "reject" and not inst.metadata_verified:
+                state.add_rejection("Unsafe InstrumentSpec default metadata in production mode.")
 
         # 7. Actual stop-loss risk <= permitted risk
         if state.actual_stop_loss_risk > state.permitted_risk_budget + 1e-4:
@@ -137,27 +148,10 @@ class FinalValidationModule(BaseRiskModule):
         if inst is None:
             state.add_rejection("Missing required InstrumentSpec metadata.")
 
-        # 15. No NaN / Infinity in key metrics
-        for name, val in [
-            ("actual_total_risk", state.actual_total_risk),
-            ("permitted_risk_budget", state.permitted_risk_budget),
-            ("final_position_size", state.final_position_size),
-        ]:
-            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
-                state.add_rejection(f"Invalid numeric value ({val}) for {name}")
-
-        # 16. No negative risk
-        if state.actual_total_risk < 0:
-            state.add_rejection(f"Negative actual total risk ({state.actual_total_risk})")
-
-        # 17. No negative quantity
-        if size < 0:
-            state.add_rejection(f"Negative position quantity ({size})")
-
         # Set final approval boolean
         state.approved = (len(state.rejection_reasons) == 0)
 
-        # Section 26: If not approved, force final_position_size = 0.0
+        # Force final_position_size = 0.0 if not approved
         if not state.approved:
             state.final_position_size = 0.0
 
