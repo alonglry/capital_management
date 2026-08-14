@@ -28,6 +28,8 @@ def main():
         strategy_id="momentum",
     )
     instrument = InstrumentSpec.create_default("AAPL", "equity")
+    instrument.metadata_verified = True
+    instrument.metadata_source = "explicit_example"
 
     config = CapitalManagementConfig(
         base_risk_pct=0.01,

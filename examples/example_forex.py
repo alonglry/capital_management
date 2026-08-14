@@ -22,6 +22,7 @@ def main():
         entry_price=1.0850,
         proposed_stop_price=1.0810,  # 40 pips stop distance
         pip_value_per_lot=10.0,
+        pip_value_currency="USD",
         spread=0.0001,  # 1 pip spread
         commission=3.50,
         slope_long=3.0,
@@ -31,6 +32,8 @@ def main():
         strategy_id="fx_trend",
     )
     instrument = InstrumentSpec.create_default("EURUSD", "forex")
+    instrument.metadata_verified = True
+    instrument.metadata_source = "explicit_example"
 
     config = CapitalManagementConfig(
         base_risk_pct=0.01,

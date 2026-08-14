@@ -58,6 +58,19 @@ def main():
         atr=10.0,
     )
 
+    inst = InstrumentSpec(
+        symbol="NVDA",
+        asset_class="EQUITY",
+        contract_size=1.0,
+        point_value=1.0,
+        quantity_increment=1.0,
+        min_quantity=1.0,
+        quote_currency="USD",
+        settlement_currency="USD",
+        metadata_verified=True,
+        metadata_source="explicit_example",
+    )
+
     correlation_data = {
         "AAPL": {"AAPL": 1.0, "MSFT": 0.65, "NVDA": 0.70},
         "MSFT": {"AAPL": 0.65, "MSFT": 1.0, "NVDA": 0.60},
@@ -84,6 +97,7 @@ def main():
         trade=candidate_trade,
         market_data=market_data,
         config=config,
+        instrument=inst,
     )
 
     print("=== MULTI-EQUITY PORTFOLIO RISK REPORT ===")

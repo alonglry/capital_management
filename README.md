@@ -1,6 +1,6 @@
 # Modular Capital Management Engine for Equity and Forex Trading
 
-A production-quality, modular, pipeline-based capital management engine for Equities and Forex trading.
+A production-grade, modular, pipeline-based capital management engine for Equities and Forex trading.
 
 It determines strategy conviction demand, maximum permissible risk budget, and final position size for a proposed trade candidate while enforcing strict portfolio-level risk limits, correlation constraints, factor exposures, transaction cost adjustments, and stress scenarios.
 
@@ -11,63 +11,54 @@ It determines strategy conviction demand, maximum permissible risk budget, and f
 The engine uses a pipeline-based modular design. Every risk management step is an independent module with explicit input and output schemas, no hidden state, and complete auditability.
 
 ```text
-Portfolio State + Trade Candidate + Configuration + Market Data (+ InstrumentSpec)
+Portfolio State + Trade Candidate + Configuration + Market Data + Explicit InstrumentSpec
                                       ↓
                          CapitalManagementPipeline
                                       ↓
-  [1] Base Risk Budget             (R0 = Equity × Base Risk %)
+  [1] Base Risk Budget             (R0 = Equity Snapshot × Base Risk %)
   [2] Conviction Risk Allocator    (R_requested = R0 × Conviction_Mult × Conflict_Mult)
   [3] Drawdown Governor           (R1 = R_prev × Drawdown Multiplier)
   [4] Volatility Governor         (R2 = R1 × Volatility Multiplier)
   [5] Strategy Allocation         (R3 = R2 × Strategy Multiplier)
-  [6] Portfolio Heat Check        (Capacity check against max heat %)
-  [7] Correlation Risk Check      (Correlation-adjusted stop-loss risk proxy matrix analysis)
-  [8] Factor Exposure Check       (FX Currency breakdown & Equity Factors)
-  [9] Stop-Loss Risk Calculation  (Stop distance & account currency conversion)
- [10] Position Sizing             (Shares/Lots with broker rules & iterative cost loop)
- [11] Transaction Cost Module     (Canonical cost calculation: spread, commission, slippage)
- [12] Stress Test                 (Stress loss capacity constraint & gap/slippage scenario)
- [13] Actual Risk Reconciliation  (Recalculates actual_total_risk = actual_stop + actual_cost)
- [14] Final Risk Validation       (Safety gate check across 17+ invariant criteria)
+  [6] Stop-Loss Risk Calculation  (Stop distance & monetary_risk_per_unit)
+  [7] Portfolio Heat Check        (Pre-sizing heat risk capacity)
+  [8] Correlation Risk Check      (Pre-sizing correlation risk capacity)
+  [9] Factor Exposure Check       (Pre-sizing factor risk capacity)
+ [10] Stress Test                 (Pre-sizing stress loss capacity solver)
+ [11] Position Sizing             (Integer-step quantity solver using solve_max_executable_quantity)
+ [12] Transaction Cost Module     (Calculates actual_transaction_cost, short_borrow_cost, financing_cost)
+ [13] Actual Risk Reconciliation  (Recalculates ledger & recomputes post-sizing heat/correlation/factor/stress)
+ [14] Final Risk Validation       (Safety gate check across RiskLedger, RiskCapacityLedger & finite values)
                                       ↓
                            CapitalManagementResult
 ```
 
 ---
 
-## 2. Risk Budget Accounting Stages
+## 2. Risk Budget Accounting & Ledgers
 
-- `base_risk_budget`: Initial unconstrained risk budget ($R_0 = \text{Equity} \times \text{BaseRisk\%}$).
-- `requested_risk_budget`: Strategy conviction-scaled risk budget ($R_{\text{requested}}$).
-- `governed_risk_budget`: Risk budget after soft governors (Drawdown, Volatility, Strategy Allocation).
-- `permitted_risk_budget`: Hard constrained ceiling computed as:
-  $$\text{permitted\_risk\_budget} = \min(\text{governed\_risk\_budget}, \text{trade\_capacity}, \text{heat\_capacity}, \text{correlation\_capacity}, \text{factor\_capacity}, \text{stress\_capacity})$$
-- `actual_stop_loss_risk`: Pure monetary loss at stop loss level ($q \times \text{monetary\_risk\_per\_unit}$).
-- `actual_transaction_cost`: Total execution costs ($C(q)$: spread, commission, slippage).
-- `actual_total_risk`: Effective total risk ($= \text{actual\_stop\_loss\_risk} + \text{actual\_transaction\_cost} \le \text{permitted\_risk\_budget}$).
+The engine uses explicit risk budgets and formal ledgers:
+- **`RiskLedger`**: Tracks `stop_loss_risk`, `transaction_cost`, `financing_cost`, `short_borrow_cost`, `normal_total_risk`, `incremental_gap_loss`, `incremental_stress_slippage_loss`, and `stress_total_risk`.
+- **`RiskCapacityLedger`**: Tracks `trade_capacity`, `portfolio_heat_capacity`, `correlation_capacity`, `factor_capacity`, `stress_capacity`, and `permitted_capacity`.
+- **`attempted_position_size` & `attempted_risk_ledger`**: Preserves measured diagnostic risk and attempted size when a trade is rejected, setting `final_position_size = 0.0` for safety.
 
 ---
 
-## 3. Instrument Metadata & Currency Conversion Layer
+## 3. Instrument Metadata & Verification
 
-`InstrumentSpec` defines sizing increments, contract sizes, and valuations.
-- `instrument_metadata_source`: Options `('explicit', 'broker', 'exchange', 'market_data', 'legacy_default')`. Production capital management rejects unverified `legacy_default` metadata.
-- **Account Currency Conversion**: Automatically converts quote currency to account settlement currency:
-  - Direct conversion if quote currency equals account currency.
-  - Inversion ($1/\text{price}$) if base currency equals account currency.
-  - Lookup via `market_data.fx_rates` (e.g. `GBPUSD` rate for a GBP quote instrument with USD account). Missing conversion rates trigger a hard rejection.
+`InstrumentSpec` defines sizing increments, contract sizes, and valuations with strict verification:
+- **Explicit Metadata Verification**: Requires `metadata_verified == True` and non-empty `metadata_source` in production mode.
+- **Explicit Validation (`validate_for_capital_management`)**: Validates required fields for Equity vs. Forex before sizing.
+- **Canonical Notional Calculation**: `calculate_notional_value(state, quantity)` calculates exact position notional value in account currency.
 
 ---
 
-## 4. Position Sizing & Transaction Cost Iteration Loop
+## 4. Single Canonical Quantity Solver
 
-Position sizing converts `permitted_risk_budget` into executable units:
-1. Validates broker rules (`min_quantity <= max_quantity`, `quantity_increment > 0`, increment alignment).
-2. Computes floor-rounded theoretical quantity $q = \lfloor (\text{budget} / \text{risk\_per\_unit}) / \text{qty\_inc} \rfloor \times \text{qty\_inc}$.
-3. Calls canonical `calculate_transaction_cost(state, q)` to compute exact costs $C(q)$.
-4. Iteratively steps down $q$ by `quantity_increment` until:
-   $$\text{stop\_loss\_risk}(q) + \text{transaction\_cost}(q) \le \text{permitted\_risk\_budget}$$
-5. If $q < \text{min\_quantity}$, the trade is rejected.
+Position sizing and reconciliation use the single canonical solver `solve_max_executable_quantity`:
+1. Converts quantity bounds into integer step indices $N_{\text{min}}$ and $N_{\text{max}}$ using `quantity_to_step_index(q, qty_inc)`.
+2. Solves for maximum executable quantity $q = N \times \text{qty\_inc}$ satisfying $\text{stop\_risk}(q) + \text{transaction\_cost}(q) \le \text{permitted\_budget}$.
+3. Eliminates floating-point accumulation errors during step-down iteration, natively supporting non-decimal steps (`0.25`, `0.05`, `0.125`, `2.5`).
 
 ---
 
@@ -79,33 +70,33 @@ capital_management/
 │   ├── account.py           # AccountState
 │   ├── portfolio.py         # Position & PortfolioState
 │   ├── trade_candidate.py   # TradeCandidate (with validate_stop_direction)
-│   ├── market_data.py       # MarketData (with fx_rates)
+│   ├── market_data.py       # MarketData (with fx_rates & as_of_timestamp)
 │   ├── config.py            # CapitalManagementConfig & ConvictionRiskConfig
 │   ├── instrument.py        # InstrumentSpec & FX conversion layer
+│   ├── ledger.py            # RiskLedger & RiskCapacityLedger
 │   ├── state.py             # CapitalManagementState & ModuleResult
 │   └── result.py            # CapitalManagementResult & trace models
 ├── modules/
 │   ├── base_module.py       # BaseRiskModule, RiskTransformer, RiskConstraint
 │   ├── base_risk.py         # Module 1: Base Risk Budget
 │   ├── conviction_allocator.py # Module 2: Dynamic Conviction Risk Allocator
-│   ├── conviction_mapping.py   # ConvictionMapping, LinearConvictionMapping, PowerConvictionMapping
 │   ├── drawdown_governor.py # Module 3: Drawdown Governor
 │   ├── volatility_governor.py # Module 4: Volatility Governor
 │   ├── strategy_allocation.py# Module 5: Strategy Allocation
-│   ├── portfolio_heat.py    # Module 6: Portfolio Heat Constraint
-│   ├── correlation_risk.py # Module 7: Correlation-Adjusted Risk Constraint
-│   ├── factor_exposure.py  # Module 8: Factor Exposure Constraint
-│   ├── stop_risk.py        # Module 9: Stop-Loss Risk Calculation
-│   ├── position_sizing.py  # Module 10: Position Sizing & Cost Iteration Loop
-│   ├── transaction_cost.py # Module 11: Transaction Cost Module (Canonical cost function)
-│   ├── stress_test.py      # Module 12: Stress Test Capacity Constraint
+│   ├── stop_risk.py        # Module 6: Stop-Loss Risk Calculation
+│   ├── portfolio_heat.py    # Module 7: Portfolio Heat Constraint
+│   ├── correlation_risk.py # Module 8: Correlation-Adjusted Risk Constraint
+│   ├── factor_exposure.py  # Module 9: Factor Exposure Constraint
+│   ├── stress_test.py      # Module 10: Stress Test Capacity Constraint
+│   ├── quantity_solver.py  # Integer step utility & solve_max_executable_quantity solver
+│   ├── position_sizing.py  # Module 11: Position Sizing
+│   ├── transaction_cost.py # Module 12: Transaction Cost Module
 │   ├── risk_reconciliation.py # Module 13: Actual Risk Reconciliation
 │   └── final_validation.py # Module 14: Final Risk Validation Safety Gate
 ├── pipeline/
-│   └── capital_management_pipeline.py # Core generic pipeline executor
-├── merton_dynamic.py        # Deprecated legacy Merton functions
+│   └── capital_management_pipeline.py # Pipeline executor with hash & timestamp checks
 ├── tests/
-│   ├── test_base_risk.py ... test_conviction_allocator.py ... test_invariants.py
+│   └── test_*.py            # Comprehensive unit and invariant test suite (71 tests)
 ├── examples/
 │   ├── example_equity.py
 │   ├── example_forex.py
@@ -117,8 +108,6 @@ capital_management/
 ---
 
 ## 6. Quick Start Usage
-
-### Equity Trade Example with Conviction & Custom FX Rates
 
 ```python
 from capital_management.models import AccountState, TradeCandidate, InstrumentSpec, MarketData, CapitalManagementConfig
@@ -132,8 +121,6 @@ trade = TradeCandidate(
     entry_price=150.0,
     proposed_stop_price=145.0,
     strategy_id="momentum",
-    slope_long=1.30,
-    threshold_long=1.00,
 )
 instrument = InstrumentSpec(
     symbol="AAPL",
@@ -144,7 +131,8 @@ instrument = InstrumentSpec(
     max_quantity=10000.0,
     point_value=1.0,
     quote_currency="USD",
-    instrument_metadata_source="explicit",
+    metadata_verified=True,
+    metadata_source="explicit",
 )
 
 pipeline = CapitalManagementPipeline()
@@ -154,7 +142,7 @@ print(f"Approved: {result.approved}")
 print(f"Permitted Risk Budget: ${result.permitted_risk_budget:,.2f}")
 print(f"Executable Size: {result.final_position_size} shares")
 print(f"Actual Total Risk: ${result.actual_total_risk:,.2f}")
-print(f"Binding Constraints: {result.binding_constraints}")
+print(f"Calculation Hash: {result.calculation_input_hash[:8]}")
 ```
 
 ---

@@ -48,12 +48,27 @@ def main():
         entry_price=0.6500,
         proposed_stop_price=0.6460,
         pip_value_per_lot=10.0,
+        pip_value_currency="USD",
         slope_long=2.5,
         threshold_long=1.0,
         slope_short=0.0,
         threshold_short=1.0,
         strategy_id="fx_trend",
         atr=0.0040,
+    )
+
+    inst = InstrumentSpec(
+        symbol="AUDUSD",
+        asset_class="FOREX",
+        contract_size=100000.0,
+        pip_size=0.0001,
+        quantity_increment=0.01,
+        min_quantity=0.01,
+        quote_currency="USD",
+        base_currency="AUD",
+        settlement_currency="USD",
+        metadata_verified=True,
+        metadata_source="explicit_example",
     )
 
     correlation_data = {
@@ -82,6 +97,7 @@ def main():
         trade=candidate_trade,
         market_data=market_data,
         config=config,
+        instrument=inst,
     )
 
     print("=== MULTI-FOREX PORTFOLIO RISK REPORT ===")

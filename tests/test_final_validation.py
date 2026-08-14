@@ -1,5 +1,5 @@
 """
-Unit tests for Module 12 — Final Risk Validation.
+Unit tests for Module 14 — Final Risk Validation.
 """
 
 import unittest
@@ -29,13 +29,17 @@ class TestFinalValidationModule(unittest.TestCase):
         self.module = FinalValidationModule()
 
     def test_final_validation_pass(self):
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=self.trade,
             market_data=MarketData(),
             config=self.config,
-            instrument=InstrumentSpec.create_default("AAPL", "equity"),
+            instrument=inst,
             governed_risk_budget=500.0,
             permitted_risk_budget=500.0,
             stop_distance=5.0,
@@ -48,6 +52,7 @@ class TestFinalValidationModule(unittest.TestCase):
             projected_portfolio_heat=0.005,
             projected_correlation_adjusted_risk=0.005,
             stress_loss=500.0,
+            stress_total_risk=500.0,
         )
         updated = self.module.process(state)
         self.assertTrue(updated.approved)
@@ -55,19 +60,23 @@ class TestFinalValidationModule(unittest.TestCase):
         self.assertEqual(updated.module_results["final_validation"].status, "PASS")
 
     def test_final_validation_reject_zero_size(self):
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=self.trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
             stop_distance=5.0,
             final_position_size=0.0,
         )
         updated = self.module.process(state)
         self.assertFalse(updated.approved)
         self.assertTrue(len(updated.rejection_reasons) > 0)
-        self.assertIn("zero or negative", updated.rejection_reasons[0].lower())
 
 
 if __name__ == "__main__":

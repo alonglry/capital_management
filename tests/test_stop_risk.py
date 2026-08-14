@@ -6,6 +6,7 @@ import unittest
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.state import CapitalManagementState
 from capital_management.models.trade_candidate import TradeCandidate
@@ -28,12 +29,17 @@ class TestStopRiskModule(unittest.TestCase):
             proposed_stop_price=145.0,
             strategy_id="momentum",
         )
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.stop_distance, 5.0)
@@ -49,16 +55,21 @@ class TestStopRiskModule(unittest.TestCase):
             proposed_stop_price=150.0,
             strategy_id="momentum",
         )
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
         )
         updated = self.module.process(state)
         self.assertEqual(updated.module_results["stop_risk"].status, "REJECT")
-        self.assertTrue(any("must be less than entry price" in r or "stop_distance <= 0" in r for r in updated.rejection_reasons))
+        self.assertTrue(any("must be less than entry price" in r or "stop_distance = 0" in r or "equals or exceeds" in r for r in updated.rejection_reasons))
 
 
 if __name__ == "__main__":

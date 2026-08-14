@@ -3,11 +3,13 @@ Shared pipeline state and module result data models.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
 from capital_management.models.instrument import InstrumentSpec
+from capital_management.models.ledger import RiskCapacityLedger, RiskLedger
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.trade_candidate import TradeCandidate
@@ -17,14 +19,6 @@ from capital_management.models.trade_candidate import TradeCandidate
 class ModuleResult:
     """
     Structured outcome produced by each executed module in the pipeline.
-
-    Args:
-        module_name (str): Identifier of the module.
-        enabled (bool): Whether the module was enabled during execution.
-        input_summary (Dict[str, Any]): Summary snapshot of inputs consumed.
-        output_summary (Dict[str, Any]): Summary snapshot of metrics updated.
-        status (str): Outcome status ('PASS', 'FAIL', 'REJECT', 'SKIPPED', 'WARNING').
-        reason (str): Human-readable explanation of module result.
     """
     module_name: str
     enabled: bool
@@ -38,7 +32,6 @@ class ModuleResult:
 class CapitalManagementState:
     """
     Mutable state object passed along the capital management pipeline.
-    Preserves all inputs, intermediate calculations, step metrics, capacities, and logs.
     """
     # Inputs
     account: AccountState
@@ -47,6 +40,16 @@ class CapitalManagementState:
     market_data: MarketData
     config: CapitalManagementConfig
     instrument: Optional[InstrumentSpec] = None
+
+    # Immutable Snapshots & Timestamps
+    risk_equity_snapshot: float = 0.0
+    decision_timestamp: Optional[str] = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    calculation_input_hash: str = ""
+
+    # Formal Ledgers
+    risk_ledger: RiskLedger = field(default_factory=RiskLedger)
+    risk_capacity_ledger: RiskCapacityLedger = field(default_factory=RiskCapacityLedger)
+    attempted_risk_ledger: RiskLedger = field(default_factory=RiskLedger)
 
     # Explicit Risk Budget Stages
     base_risk_budget: float = 0.0
@@ -105,6 +108,8 @@ class CapitalManagementState:
     raw_position_size: float = 0.0
     rounded_position_size: float = 0.0
     executable_position_size: float = 0.0
+    attempted_position_size: float = 0.0
+    max_quantity_binding: bool = False
 
     # Cost Metrics
     estimated_spread_cost: float = 0.0
@@ -112,11 +117,21 @@ class CapitalManagementState:
     estimated_slippage: float = 0.0
     total_transaction_cost: float = 0.0
     cost_adjusted_position_size: float = 0.0
+    short_borrow_cost: float = 0.0
+    financing_cost: float = 0.0
 
     # Stress Metrics
+    normal_stop_loss_risk: float = 0.0
+    normal_transaction_cost: float = 0.0
+    normal_total_risk: float = 0.0
     normal_loss: float = 0.0
+    incremental_gap_loss: float = 0.0
+    incremental_stress_slippage_loss: float = 0.0
+    stress_total_risk: float = 0.0
     stress_loss: float = 0.0
     stress_loss_pct: float = 0.0
+    stress_direction: str = "adverse_down"
+    stressed_exit_price: float = 0.0
 
     # Actual Reconciled Risk Outputs
     actual_stop_loss_risk: float = 0.0
@@ -135,52 +150,35 @@ class CapitalManagementState:
     rejection_reasons: List[str] = field(default_factory=list)
     trace_logs: List[str] = field(default_factory=list)
 
+    def __post_init__(self):
+        if self.risk_equity_snapshot <= 0 and self.account and self.account.equity > 0:
+            self.risk_equity_snapshot = float(self.account.equity)
+
     @property
     def correlation_adjusted_stop_risk_pct(self) -> float:
-        """
-        Alias for correlation_adjusted_risk (% of equity stop loss risk proxy).
-        """
         return self.correlation_adjusted_risk
 
     @property
     def projected_correlation_adjusted_stop_risk_pct(self) -> float:
-        """
-        Alias for projected_correlation_adjusted_risk (% of equity stop loss risk proxy).
-        """
         return self.projected_correlation_adjusted_risk
 
     @property
     def adjusted_risk_budget(self) -> float:
-        """
-        Backward-compatibility alias returning governed_risk_budget or permitted_risk_budget.
-        """
         return self.governed_risk_budget
 
     @adjusted_risk_budget.setter
     def adjusted_risk_budget(self, val: float) -> None:
-        """
-        Backward-compatibility setter updating governed_risk_budget and permitted_risk_budget.
-        """
         self.governed_risk_budget = val
         self.permitted_risk_budget = val
 
     def add_trace(self, tag: str, message: str) -> None:
-        """
-        Appends a formatted trace line to trace_logs.
-        """
         line = f"[{tag}] {message}"
         self.trace_logs.append(line)
 
     def add_warning(self, message: str) -> None:
-        """
-        Appends a warning message.
-        """
         if message not in self.warnings:
             self.warnings.append(message)
 
     def add_rejection(self, reason: str) -> None:
-        """
-        Appends a rejection reason.
-        """
         if reason not in self.rejection_reasons:
             self.rejection_reasons.append(reason)

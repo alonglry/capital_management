@@ -2,11 +2,14 @@
 Capital Management Pipeline Executor.
 """
 
+import hashlib
+import json
 from typing import List, Optional
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
 from capital_management.models.instrument import InstrumentSpec
+from capital_management.models.ledger import RiskCapacityLedger, RiskLedger
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.result import CapitalManagementResult
@@ -61,12 +64,6 @@ class CapitalManagementPipeline:
     """
 
     def __init__(self, modules: Optional[List[BaseRiskModule]] = None):
-        """
-        Initializes pipeline with a sequence of risk modules.
-
-        Args:
-            modules (Optional[List[BaseRiskModule]]): List of risk module instances. If None, uses default 14-module pipeline.
-        """
         self.modules: List[BaseRiskModule] = modules if modules is not None else default_pipeline_modules()
         self.validate_module_dependencies()
 
@@ -89,6 +86,16 @@ class CapitalManagementPipeline:
             if names.index("risk_reconciliation") < names.index("position_sizing"):
                 raise ValueError("Dependency Error: Module 'risk_reconciliation' cannot execute before 'position_sizing'")
 
+    def _calculate_input_hash(
+        self,
+        account: AccountState,
+        trade: TradeCandidate,
+        config: CapitalManagementConfig,
+        instrument: Optional[InstrumentSpec],
+    ) -> str:
+        raw_str = f"{account.equity}|{trade.symbol}|{trade.side}|{trade.entry_price}|{trade.proposed_stop_price}|{config.base_risk_pct}|{instrument.symbol if instrument else 'NONE'}"
+        return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
+
     def run(
         self,
         account: AccountState,
@@ -100,13 +107,12 @@ class CapitalManagementPipeline:
     ) -> CapitalManagementResult:
         """
         Executes the capital management pipeline on the provided input state.
+        DOES NOT automatically construct an unverified fallback InstrumentSpec if instrument is None in production.
         """
         if market_data is None:
             market_data = MarketData()
         if config is None:
             config = CapitalManagementConfig()
-        if instrument is None:
-            instrument = InstrumentSpec.create_default(trade.symbol, trade.asset_class)
 
         state = CapitalManagementState(
             account=account,
@@ -115,11 +121,25 @@ class CapitalManagementPipeline:
             market_data=market_data,
             config=config,
             instrument=instrument,
+            risk_equity_snapshot=float(account.equity),
         )
 
-        state.add_trace("Pipeline", f"Starting execution of {len(self.modules)} modules for {trade.symbol} ({trade.asset_class})")
+        input_hash = self._calculate_input_hash(account, trade, config, instrument)
+        state.calculation_input_hash = input_hash
+
+        state.add_trace("Pipeline", f"Starting execution of {len(self.modules)} modules for {trade.symbol} ({trade.asset_class}) [Hash: {input_hash[:8]}]")
 
         has_upstream_rejection = False
+
+        # CRITICAL SAFETY: If instrument is None, do NOT create unverified fallback metadata automatically
+        if instrument is None:
+            state.add_rejection("Missing required explicit InstrumentSpec metadata.")
+            has_upstream_rejection = True
+
+        # CRITICAL SAFETY: If equity <= 0, reject immediately
+        if account.equity <= 0:
+            state.add_rejection(f"Account equity ({account.equity}) must be > 0.")
+            has_upstream_rejection = True
 
         # Execute each module in sequence
         for module in self.modules:
@@ -137,7 +157,7 @@ class CapitalManagementPipeline:
                 )
                 continue
 
-            # Early Termination Semantics: If upstream rejection occurred, skip sizing/execution modules
+            # Early Termination Semantics: If upstream rejection occurred, skip sizing/execution/reconciliation
             if has_upstream_rejection and module.module_type in ("sizing", "execution", "reconciliation"):
                 state.add_trace(module.name, f"Skipping {module.name} due to upstream hard rejection.")
                 state.module_results[module.name] = ModuleResult(
@@ -155,6 +175,17 @@ class CapitalManagementPipeline:
             mod_res = state.module_results.get(module.name)
             if mod_res and mod_res.status in ("REJECT", "FAIL"):
                 has_upstream_rejection = True
+
+        # Build RiskCapacityLedger
+        cap_ledger = RiskCapacityLedger(
+            trade_capacity=state.trade_risk_capacity,
+            portfolio_heat_capacity=state.portfolio_heat_capacity,
+            correlation_capacity=state.correlation_risk_capacity,
+            factor_capacity=state.factor_risk_capacity,
+            stress_capacity=state.stress_risk_capacity,
+            permitted_capacity=state.permitted_risk_budget,
+        )
+        state.risk_capacity_ledger = cap_ledger
 
         # Build final CapitalManagementResult
         result = CapitalManagementResult(
@@ -174,6 +205,7 @@ class CapitalManagementPipeline:
             permitted_risk_budget=state.permitted_risk_budget,
             raw_position_size=state.raw_position_size,
             executable_position_size=state.executable_position_size,
+            attempted_position_size=state.attempted_position_size,
             final_position_size=state.final_position_size,
             entry_price=trade.entry_price,
             stop_price=trade.proposed_stop_price,
@@ -182,7 +214,7 @@ class CapitalManagementPipeline:
             actual_transaction_cost=state.actual_transaction_cost,
             actual_total_risk=state.actual_total_risk,
             final_risk_budget=state.permitted_risk_budget,
-            final_risk_pct=state.actual_total_risk / account.equity if account.equity > 0 else 0.0,
+            final_risk_pct=state.actual_total_risk / state.risk_equity_snapshot if state.risk_equity_snapshot > 0 else 0.0,
             current_portfolio_heat=state.current_portfolio_heat,
             projected_portfolio_heat=state.projected_portfolio_heat,
             correlation_adjusted_risk=state.correlation_adjusted_risk,
@@ -194,6 +226,13 @@ class CapitalManagementPipeline:
             module_results=dict(state.module_results),
             calculation_trace=list(state.trace_logs),
             binding_constraints=list(state.binding_constraints),
+            risk_ledger=state.risk_ledger.to_dict(),
+            risk_capacity_ledger=cap_ledger.to_dict(),
+            attempted_risk_ledger=state.attempted_risk_ledger.to_dict(),
+            engine_version="2.1.0",
+            risk_equity_snapshot=state.risk_equity_snapshot,
+            calculation_input_hash=state.calculation_input_hash,
+            as_of_timestamp=state.decision_timestamp,
         )
 
         return result

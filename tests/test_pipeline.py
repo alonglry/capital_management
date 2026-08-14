@@ -6,6 +6,7 @@ import unittest
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.state import CapitalManagementState, ModuleResult
@@ -54,10 +55,19 @@ class TestCapitalManagementPipeline(unittest.TestCase):
             proposed_stop_price=145.0,
             strategy_id="momentum",
         )
+        self.inst = InstrumentSpec.create_default("AAPL", "equity")
+        self.inst.metadata_verified = True
+        self.inst.metadata_source = "explicit_test"
+
+    def test_missing_instrument_rejection(self):
+        pipeline = CapitalManagementPipeline()
+        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=None)
+        self.assertFalse(result.approved)
+        self.assertIn("Missing required explicit InstrumentSpec metadata.", result.rejection_reasons)
 
     def test_full_default_pipeline_execution(self):
         pipeline = CapitalManagementPipeline()
-        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade)
+        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=self.inst)
 
         self.assertTrue(result.approved)
         self.assertEqual(result.symbol, "AAPL")
@@ -68,9 +78,6 @@ class TestCapitalManagementPipeline(unittest.TestCase):
         self.assertIn("final_validation", result.module_results)
 
     def test_custom_module_subset_pipeline(self):
-        """
-        Verify pipeline can run a reduced subset of modules without changing the modules.
-        """
         custom_modules = [
             BaseRiskBudgetModule(),
             PortfolioHeatModule(),
@@ -78,23 +85,20 @@ class TestCapitalManagementPipeline(unittest.TestCase):
             PositionSizingModule(),
         ]
         pipeline = CapitalManagementPipeline(modules=custom_modules)
-        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade)
+        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=self.inst)
 
         self.assertEqual(len(result.module_results), 4)
         self.assertEqual(result.base_risk_budget, 500.0)
         self.assertEqual(result.final_position_size, 100.0)  # 500 / 5.0 = 100 shares
 
     def test_replaceable_module_in_pipeline(self):
-        """
-        Verify replacing VolatilityGovernor with CustomVolatilityGovernor seamlessly works.
-        """
         pipeline = CapitalManagementPipeline()
         pipeline.modules = [
             m if m.name != "volatility_governor" else CustomVolatilityGovernor()
             for m in pipeline.modules
         ]
 
-        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade)
+        result = pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=self.inst)
         self.assertTrue(result.approved)
         self.assertEqual(result.module_results["volatility_governor"].output_summary["volatility_multiplier"], 0.90)
 

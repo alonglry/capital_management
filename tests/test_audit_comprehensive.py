@@ -27,13 +27,15 @@ class TestAuditComprehensive(unittest.TestCase):
         self.account = AccountState(equity=100000.0, cash=50000.0, currency="USD")
         self.config = CapitalManagementConfig()
         self.pipeline = CapitalManagementPipeline()
+        self.inst_aapl = InstrumentSpec(
+            symbol="AAPL", asset_class="EQUITY", contract_size=1.0, quantity_increment=1.0, min_quantity=1.0, metadata_verified=True, metadata_source="explicit"
+        )
 
     def test_scenario_a_equity_long(self):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=140.0, strategy_id="momentum"
         )
-        inst = InstrumentSpec(symbol="AAPL", asset_class="EQUITY", contract_size=1.0, quantity_increment=1.0, min_quantity=1.0, metadata_verified=True, metadata_source="explicit")
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=inst)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=self.inst_aapl)
         self.assertTrue(res.approved)
         self.assertGreater(res.final_position_size, 0)
         self.assertLessEqual(res.actual_total_risk, res.permitted_risk_budget + 1e-4)
@@ -77,7 +79,7 @@ class TestAuditComprehensive(unittest.TestCase):
 
     def test_scenario_f_cross_forex_missing_rate_rejection(self):
         trade = TradeCandidate(
-            symbol="EURGBP", asset_class="forex", side="long", entry_price=0.8500, proposed_stop_price=0.8450, strategy_id="carry"
+            symbol="EURGBP", asset_class="forex", side="long", entry_price=0.8500, proposed_stop_price=0.8450, strategy_id="carry", pip_value_per_lot=12.5, pip_value_currency="GBP"
         )
         inst = InstrumentSpec(symbol="EURGBP", asset_class="FOREX", contract_size=100000.0, pip_size=0.0001, quantity_increment=0.01, min_quantity=0.01, quote_currency="GBP", base_currency="EUR", metadata_verified=True, metadata_source="explicit")
         mdata = MarketData(fx_rates={})
@@ -90,7 +92,7 @@ class TestAuditComprehensive(unittest.TestCase):
             trade = TradeCandidate(
                 symbol="TEST", asset_class="equity", side="long", entry_price=10.0, proposed_stop_price=9.0, strategy_id="m"
             )
-            inst = InstrumentSpec(symbol="TEST", asset_class="EQUITY", quantity_increment=inc, min_quantity=inc, metadata_verified=True)
+            inst = InstrumentSpec(symbol="TEST", asset_class="EQUITY", quantity_increment=inc, min_quantity=inc, metadata_verified=True, metadata_source="explicit")
             res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=inst)
             if res.approved:
                 rem = abs(res.final_position_size / inc - round(res.final_position_size / inc))
@@ -100,10 +102,9 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=140.0, strategy_id="momentum"
         )
-        inst = InstrumentSpec(symbol="AAPL", asset_class="EQUITY", metadata_verified=True)
+        inst = InstrumentSpec(symbol="AAPL", asset_class="EQUITY", metadata_verified=True, metadata_source="explicit")
         res1 = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=inst)
 
-        # Run reconciliation and validation twice on state
         state = CapitalManagementState(account=self.account, portfolio=[], trade=trade, market_data=MarketData(), config=self.config, instrument=inst)
         state.permitted_risk_budget = 500.0
         state.monetary_risk_per_unit = 10.0
@@ -137,7 +138,8 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="MSFT", asset_class="equity", side="long", entry_price=300.0, proposed_stop_price=290.0, strategy_id="momentum"
         )
-        res = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade)
+        inst_msft = InstrumentSpec(symbol="MSFT", asset_class="EQUITY", metadata_verified=True, metadata_source="explicit")
+        res = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade, instrument=inst_msft)
         self.assertFalse(res.approved)
         self.assertEqual(res.final_position_size, 0.0)
 
@@ -145,10 +147,13 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="EURGBP", asset_class="forex", side="long", entry_price=0.8500, proposed_stop_price=0.8450, strategy_id="carry"
         )
+        inst_unverified = InstrumentSpec.create_default("EURGBP", "forex")
+        inst_unverified.metadata_verified = False
+        inst_unverified.metadata_source = "legacy_default"
         cfg = CapitalManagementConfig(require_verified_instrument_metadata="reject")
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, config=cfg)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, config=cfg, instrument=inst_unverified)
         self.assertFalse(res.approved)
-        self.assertTrue(any("Unsafe InstrumentSpec default" in r for r in res.rejection_reasons))
+        self.assertTrue(any("Unsafe InstrumentSpec default" in r or "metadata_verified is False" in r for r in res.rejection_reasons))
 
     def test_scenario_s_invalid_custom_module_order(self):
         with self.assertRaises(ValueError):
@@ -158,7 +163,7 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=160.0, strategy_id="momentum"
         )
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=self.inst_aapl)
         self.assertFalse(res.approved)
         self.assertEqual(res.final_position_size, 0.0)
         self.assertEqual(res.module_results["position_sizing"].status, "SKIPPED")
@@ -167,7 +172,7 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=145.0, strategy_id="momentum", commission=10.0
         )
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=self.inst_aapl)
         if res.approved:
             self.assertLessEqual(res.actual_total_risk, res.permitted_risk_budget + 1e-4)
 
@@ -175,14 +180,14 @@ class TestAuditComprehensive(unittest.TestCase):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=145.0, strategy_id="momentum"
         )
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=self.inst_aapl)
         self.assertLessEqual(res.final_position_size, res.raw_position_size + 1e-4)
 
     def test_invariant_10_and_11_no_approved_with_rejections(self):
         trade = TradeCandidate(
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=145.0, strategy_id="momentum"
         )
-        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade)
+        res = self.pipeline.run(account=self.account, portfolio=[], trade=trade, instrument=self.inst_aapl)
         if res.approved:
             self.assertEqual(len(res.rejection_reasons), 0)
         else:

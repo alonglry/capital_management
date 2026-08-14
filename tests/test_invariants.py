@@ -7,6 +7,7 @@ import unittest
 from capital_management.models import (
     AccountState,
     CapitalManagementConfig,
+    InstrumentSpec,
     MarketData,
     Position,
     TradeCandidate,
@@ -26,13 +27,16 @@ class TestCapitalEngineInvariants(unittest.TestCase):
             proposed_stop_price=145.0,
             strategy_id="momentum",
         )
+        self.inst = InstrumentSpec.create_default("AAPL", "equity")
+        self.inst.metadata_verified = True
+        self.inst.metadata_source = "explicit_test"
         self.pipeline = CapitalManagementPipeline()
 
     def test_invariant_1_actual_total_risk_le_permitted_risk_budget(self):
         """
         Invariant 1: actual_total_risk <= permitted_risk_budget after ALL sizing, rounding, and cost calculations.
         """
-        result = self.pipeline.run(account=self.account, portfolio=[], trade=self.trade)
+        result = self.pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=self.inst)
         if result.approved:
             self.assertLessEqual(result.actual_total_risk, result.permitted_risk_budget + 1e-4)
 
@@ -40,7 +44,7 @@ class TestCapitalEngineInvariants(unittest.TestCase):
         """
         Invariant 2: executable_position_size <= raw_position_size when quantity rounding is risk-constrained.
         """
-        result = self.pipeline.run(account=self.account, portfolio=[], trade=self.trade)
+        result = self.pipeline.run(account=self.account, portfolio=[], trade=self.trade, instrument=self.inst)
         if result.approved:
             self.assertLessEqual(result.executable_position_size, result.raw_position_size + 1e-6)
 
@@ -59,7 +63,7 @@ class TestCapitalEngineInvariants(unittest.TestCase):
             monetary_risk_at_stop=2000.0,
             strategy_id="trend",
         )
-        result = self.pipeline.run(account=self.account, portfolio=[pos], trade=self.trade)
+        result = self.pipeline.run(account=self.account, portfolio=[pos], trade=self.trade, instrument=self.inst)
         self.assertGreaterEqual(result.projected_portfolio_heat, result.current_portfolio_heat)
 
     def test_invariant_4_disabling_risk_reducing_module_must_not_reduce_risk(self):
@@ -69,12 +73,12 @@ class TestCapitalEngineInvariants(unittest.TestCase):
         account_dd = AccountState(equity=90000.0, cash=50000.0, peak_equity=100000.0)
 
         # Enabled drawdown governor
-        res_enabled = self.pipeline.run(account=account_dd, portfolio=[], trade=self.trade)
+        res_enabled = self.pipeline.run(account=account_dd, portfolio=[], trade=self.trade, instrument=self.inst)
 
         # Disabled drawdown governor
         cfg_disabled = CapitalManagementConfig()
         cfg_disabled.modules["drawdown_governor"] = False
-        res_disabled = self.pipeline.run(account=account_dd, portfolio=[], trade=self.trade, config=cfg_disabled)
+        res_disabled = self.pipeline.run(account=account_dd, portfolio=[], trade=self.trade, config=cfg_disabled, instrument=self.inst)
 
         self.assertGreaterEqual(res_disabled.permitted_risk_budget, res_enabled.permitted_risk_budget)
 
@@ -88,8 +92,8 @@ class TestCapitalEngineInvariants(unittest.TestCase):
         cfg1 = CapitalManagementConfig(base_risk_pct=0.005)
         cfg2 = CapitalManagementConfig(base_risk_pct=0.010)
 
-        res1 = self.pipeline.run(account=self.account, portfolio=[], trade=trade1, config=cfg1)
-        res2 = self.pipeline.run(account=self.account, portfolio=[], trade=trade1, config=cfg2)
+        res1 = self.pipeline.run(account=self.account, portfolio=[], trade=trade1, config=cfg1, instrument=self.inst)
+        res2 = self.pipeline.run(account=self.account, portfolio=[], trade=trade1, config=cfg2, instrument=self.inst)
 
         self.assertGreaterEqual(res2.raw_position_size, res1.raw_position_size)
 
@@ -104,8 +108,8 @@ class TestCapitalEngineInvariants(unittest.TestCase):
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=135.0, strategy_id="t1"
         )
 
-        res_small = self.pipeline.run(account=self.account, portfolio=[], trade=trade_small_stop)
-        res_large = self.pipeline.run(account=self.account, portfolio=[], trade=trade_large_stop)
+        res_small = self.pipeline.run(account=self.account, portfolio=[], trade=trade_small_stop, instrument=self.inst)
+        res_large = self.pipeline.run(account=self.account, portfolio=[], trade=trade_large_stop, instrument=self.inst)
 
         self.assertLessEqual(res_large.raw_position_size, res_small.raw_position_size)
 
@@ -120,8 +124,8 @@ class TestCapitalEngineInvariants(unittest.TestCase):
             symbol="AAPL", asset_class="equity", side="long", entry_price=150.0, proposed_stop_price=145.0, commission=1.00, strategy_id="t1"
         )
 
-        res_low = self.pipeline.run(account=self.account, portfolio=[], trade=trade_low_cost)
-        res_high = self.pipeline.run(account=self.account, portfolio=[], trade=trade_high_cost)
+        res_low = self.pipeline.run(account=self.account, portfolio=[], trade=trade_low_cost, instrument=self.inst)
+        res_high = self.pipeline.run(account=self.account, portfolio=[], trade=trade_high_cost, instrument=self.inst)
 
         self.assertLessEqual(res_high.executable_position_size, res_low.executable_position_size)
 
@@ -135,12 +139,15 @@ class TestCapitalEngineInvariants(unittest.TestCase):
         trade = TradeCandidate(
             symbol="NVDA", asset_class="equity", side="long", entry_price=400.0, proposed_stop_price=380.0, strategy_id="t1"
         )
+        inst_nvda = InstrumentSpec.create_default("NVDA", "equity")
+        inst_nvda.metadata_verified = True
+        inst_nvda.metadata_source = "explicit_test"
 
         m_low = MarketData(correlation_matrix={"MSFT": {"MSFT": 1.0, "NVDA": 0.20}, "NVDA": {"MSFT": 0.20, "NVDA": 1.0}})
         m_high = MarketData(correlation_matrix={"MSFT": {"MSFT": 1.0, "NVDA": 0.85}, "NVDA": {"MSFT": 0.85, "NVDA": 1.0}})
 
-        res_low = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade, market_data=m_low)
-        res_high = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade, market_data=m_high)
+        res_low = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade, market_data=m_low, instrument=inst_nvda)
+        res_high = self.pipeline.run(account=self.account, portfolio=[pos], trade=trade, market_data=m_high, instrument=inst_nvda)
 
         self.assertLessEqual(res_high.correlation_risk_capacity, res_low.correlation_risk_capacity + 1e-4)
 

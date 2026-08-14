@@ -14,7 +14,7 @@ class CapitalManagementResult:
     """
     Structured outcome returned by the Capital Management Engine.
     Contains explicit risk accounting stages, capacities, position sizes, actual risks,
-    rejection reasons, warnings, binding constraints, per-module outcome records, and complete calculation trace.
+    rejection reasons, warnings, binding constraints, ledgers, per-module outcome records, and complete calculation trace.
     """
     approved: bool
     symbol: str
@@ -35,6 +35,7 @@ class CapitalManagementResult:
 
     raw_position_size: float
     executable_position_size: float
+    attempted_position_size: float
     final_position_size: float
 
     entry_price: float
@@ -63,14 +64,17 @@ class CapitalManagementResult:
     calculation_trace: List[str] = field(default_factory=list)
     binding_constraints: List[str] = field(default_factory=list)
 
+    risk_ledger: Dict[str, float] = field(default_factory=dict)
+    risk_capacity_ledger: Dict[str, float] = field(default_factory=dict)
+    attempted_risk_ledger: Dict[str, float] = field(default_factory=dict)
+
     engine_version: str = "2.1.0"
+    risk_equity_snapshot: float = 0.0
+    calculation_input_hash: str = ""
     as_of_timestamp: Optional[str] = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @property
     def correlation_adjusted_stop_risk_pct(self) -> float:
-        """
-        Alias for correlation_adjusted_risk (% of equity stop loss risk proxy).
-        """
         return self.correlation_adjusted_risk
 
     def to_dict(self) -> Dict[str, Any]:
@@ -94,6 +98,7 @@ class CapitalManagementResult:
             "permitted_risk_budget": self.permitted_risk_budget,
             "raw_position_size": self.raw_position_size,
             "executable_position_size": self.executable_position_size,
+            "attempted_position_size": self.attempted_position_size,
             "final_position_size": self.final_position_size,
             "entry_price": self.entry_price,
             "stop_price": self.stop_price,
@@ -113,7 +118,12 @@ class CapitalManagementResult:
             "rejection_reasons": self.rejection_reasons,
             "warnings": self.warnings,
             "binding_constraints": self.binding_constraints,
+            "risk_ledger": self.risk_ledger,
+            "risk_capacity_ledger": self.risk_capacity_ledger,
+            "attempted_risk_ledger": self.attempted_risk_ledger,
             "engine_version": self.engine_version,
+            "risk_equity_snapshot": self.risk_equity_snapshot,
+            "calculation_input_hash": self.calculation_input_hash,
             "as_of_timestamp": self.as_of_timestamp,
             "module_results": {
                 name: {

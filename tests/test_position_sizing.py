@@ -6,6 +6,7 @@ import unittest
 
 from capital_management.models.account import AccountState
 from capital_management.models.config import CapitalManagementConfig
+from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.state import CapitalManagementState
 from capital_management.models.trade_candidate import TradeCandidate
@@ -28,22 +29,26 @@ class TestPositionSizingModule(unittest.TestCase):
             proposed_stop_price=94.70,  # stop distance = 5.30
             strategy_id="trend",
         )
+        inst = InstrumentSpec.create_default("AAPL", "equity")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
             governed_risk_budget=500.0,
             permitted_risk_budget=500.0,
             stop_distance=5.30,
             monetary_risk_per_unit=5.30,
         )
-        # Raw shares = 500 / 5.30 = 94.3396. Rounding = floor_int -> 94 shares.
+        # Raw shares = 500 / 5.30 = 94.3396. Step sizing -> 94 shares.
         updated = self.module.process(state)
         self.assertAlmostEqual(updated.raw_position_size, 500.0 / 5.30, places=4)
-        self.assertEqual(updated.rounded_position_size, 94.0)
-        self.assertEqual(updated.final_position_size, 94.0)
+        self.assertEqual(updated.executable_position_size, 94.0)
 
     def test_forex_position_sizing(self):
         trade = TradeCandidate(
@@ -53,23 +58,29 @@ class TestPositionSizingModule(unittest.TestCase):
             entry_price=1.0850,
             proposed_stop_price=1.0820,  # 30 pips
             pip_value_per_lot=10.0,
+            pip_value_currency="USD",
             strategy_id="fx_trend",
         )
+        inst = InstrumentSpec.create_default("EURUSD", "forex")
+        inst.metadata_verified = True
+        inst.metadata_source = "explicit_test"
+
         state = CapitalManagementState(
             account=self.account,
             portfolio=[],
             trade=trade,
             market_data=MarketData(),
             config=self.config,
+            instrument=inst,
             governed_risk_budget=300.0,
             permitted_risk_budget=300.0,
             stop_distance=0.0030,
             monetary_risk_per_unit=300.0,
         )
-        # 300 / (30 * 10) = 1.0 lot.
+        # 300 / 300 = 1.0 lot.
         updated = self.module.process(state)
         self.assertEqual(updated.raw_position_size, 1.0)
-        self.assertEqual(updated.rounded_position_size, 1.0)
+        self.assertEqual(updated.executable_position_size, 1.0)
 
 
 if __name__ == "__main__":
