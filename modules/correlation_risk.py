@@ -13,16 +13,20 @@ from capital_management.modules.base_module import RiskConstraint
 
 class CorrelationRiskModule(RiskConstraint):
     """
-    Module 7: Hard risk constraint computing maximum correlation-adjusted risk capacity via quadratic variance solver.
+    Module 7: Hard risk constraint computing maximum correlation-adjusted stop-loss risk capacity via quadratic variance solver.
 
-    Projected Portfolio Variance:
-        V(x) = r' * Sigma * r + 2 * x * (c' * r) + x^2
-    Solves x^2 + 2(c'r)x + (r'Sigma r - max_risk^2) <= 0 for positive root x*.
+    Note:
+        Vector r_i = monetary_risk_at_stop / equity represents a STOP-LOSS RISK PROXY VECTOR,
+        and sqrt(r' * Sigma * r) is the correlation-adjusted stop-loss risk proxy, not statistical asset volatility.
     """
 
     @property
     def name(self) -> str:
         return "correlation_check"
+
+    @property
+    def module_type(self) -> str:
+        return "constraint"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         symbols = [p.symbol for p in state.portfolio] + [state.trade.symbol]
@@ -37,8 +41,8 @@ class CorrelationRiskModule(RiskConstraint):
         return {
             "correlation_risk_capacity": state.correlation_risk_capacity,
             "permitted_risk_budget": state.permitted_risk_budget,
-            "correlation_adjusted_risk": state.correlation_adjusted_risk,
-            "projected_correlation_adjusted_risk": state.projected_correlation_adjusted_risk,
+            "correlation_adjusted_stop_risk_pct": state.correlation_adjusted_risk,
+            "projected_correlation_adjusted_stop_risk_pct": state.projected_correlation_adjusted_risk,
         }
 
     def _validate_and_repair_matrix(
@@ -47,6 +51,8 @@ class CorrelationRiskModule(RiskConstraint):
         """
         Validates correlation matrix properties:
         1. Square, 2. Symmetric, 3. Diagonal == 1, 4. Elements in [-1, 1], 5. Positive Semidefinite.
+
+        If non-PSD and policy == 'repair', performs nearest PSD projection and logs repair diagnostics.
         """
         n, m = matrix.shape
         if n != m:
@@ -62,9 +68,12 @@ class CorrelationRiskModule(RiskConstraint):
             return matrix, False, "Matrix elements fall outside [-1.0, 1.0]"
 
         eigvals = np.linalg.eigvalsh(matrix)
-        if np.min(eigvals) < -1e-4:
+        min_eig_before = float(np.min(eigvals))
+
+        if min_eig_before < -1e-4:
             policy = state.config.invalid_correlation_policy.lower()
             if policy == "repair":
+                original_matrix = matrix.copy()
                 # Nearest PSD projection
                 vals, vecs = np.linalg.eigh(matrix)
                 vals = np.maximum(vals, 1e-6)
@@ -72,10 +81,19 @@ class CorrelationRiskModule(RiskConstraint):
                 # Rescale diagonal to 1.0
                 d = np.sqrt(np.diag(repaired))
                 repaired = repaired / np.outer(d, d)
-                state.add_warning("Correlation matrix was non-PSD; repaired using nearest PSD projection.")
+
+                min_eig_after = float(np.min(np.linalg.eigvalsh(repaired)))
+                max_abs_change = float(np.max(np.abs(repaired - original_matrix)))
+
+                msg = (
+                    f"Correlation matrix was non-PSD (min_eig_before = {min_eig_before:.6f}); "
+                    f"repaired using nearest PSD projection (min_eig_after = {min_eig_after:.6f}, max_abs_change = {max_abs_change:.6f})."
+                )
+                state.add_warning(msg)
+                state.add_trace(self.name, f"Repair Diagnostics: {msg}")
                 return repaired, True, "Repaired non-PSD matrix"
             else:
-                return matrix, False, f"Matrix is not positive semidefinite (min eigenvalue = {np.min(eigvals):.6f})"
+                return matrix, False, f"Matrix is not positive semidefinite (min eigenvalue = {min_eig_before:.6f})"
 
         return matrix, True, "Valid"
 
@@ -106,9 +124,15 @@ class CorrelationRiskModule(RiskConstraint):
                 else:
                     sym_i = symbols[i]
                     sym_j = symbols[j]
-                    val = raw_matrix.get(sym_i, {}).get(sym_j)
-                    if val is None:
-                        val = raw_matrix.get(sym_j, {}).get(sym_i)
+                    if sym_i == sym_j:
+                        # Same symbol duplicate check
+                        pos_i_side = state.portfolio[i].side.lower() if i < len(state.portfolio) else state.trade.side.lower()
+                        pos_j_side = state.portfolio[j].side.lower() if j < len(state.portfolio) else state.trade.side.lower()
+                        val = 1.0 if pos_i_side == pos_j_side else -1.0
+                    else:
+                        val = raw_matrix.get(sym_i, {}).get(sym_j)
+                        if val is None:
+                            val = raw_matrix.get(sym_j, {}).get(sym_i)
                     if val is None:
                         missing = True
                         break
@@ -160,9 +184,11 @@ class CorrelationRiskModule(RiskConstraint):
             )
             return state
 
-        # Normalized risk vectors r (% of equity)
+        # Normalized risk vectors r (% of equity) representing stop-loss risk
         r_existing = np.array([p.monetary_risk_at_stop / equity for p in existing_positions], dtype=np.float64) if n_existing > 0 else np.array([], dtype=np.float64)
         max_risk_pct = state.config.max_correlation_adjusted_risk_pct
+
+        existing_portfolio_breach = False
 
         if n_existing == 0:
             # Single trade case: capacity = max_risk_pct * equity
@@ -175,19 +201,24 @@ class CorrelationRiskModule(RiskConstraint):
             var_curr = float(r_existing.T @ Sigma_curr @ r_existing)
             curr_corr_risk_pct = math.sqrt(max(0.0, var_curr))
 
-            c_dot_r = float(c_vector @ r_existing)
-            c_term = c_dot_r
-            const_term = var_curr - (max_risk_pct ** 2)
-
-            discriminant = (c_term ** 2) - const_term
-
-            if discriminant < 0:
-                # Portfolio already exceeds max correlation risk
+            # Section 9: Check if existing portfolio already breaches correlation limit
+            if curr_corr_risk_pct > max_risk_pct + 1e-6:
+                existing_portfolio_breach = True
+                corr_capacity = 0.0
                 x_star = 0.0
             else:
-                x_star = -c_term + math.sqrt(discriminant)
+                c_dot_r = float(c_vector @ r_existing)
+                c_term = c_dot_r
+                const_term = var_curr - (max_risk_pct ** 2)
 
-            corr_capacity = max(0.0, float(x_star * equity))
+                discriminant = (c_term ** 2) - const_term
+
+                if discriminant < 0:
+                    x_star = 0.0
+                else:
+                    x_star = -c_term + math.sqrt(discriminant)
+
+                corr_capacity = max(0.0, float(x_star * equity))
 
         state.correlation_risk_capacity = corr_capacity
         state.correlation_adjusted_risk = curr_corr_risk_pct
@@ -207,9 +238,13 @@ class CorrelationRiskModule(RiskConstraint):
 
         state.projected_correlation_adjusted_risk = proj_corr_risk_pct
 
-        if corr_capacity <= 0:
+        if existing_portfolio_breach:
             status = "REJECT"
-            reason = f"Existing portfolio correlation risk ({curr_corr_risk_pct:.2%}) meets or exceeds maximum limit ({max_risk_pct:.2%})"
+            reason = f"Existing portfolio already exceeds correlation risk limit ({curr_corr_risk_pct:.2%} > {max_risk_pct:.2%}). No additional risk permitted."
+            state.add_rejection(reason)
+        elif corr_capacity <= 0:
+            status = "REJECT"
+            reason = f"Correlation capacity is zero. Projected correlation risk would breach limit ({max_risk_pct:.2%})"
             state.add_rejection(reason)
         elif new_permitted < prev_permitted:
             status = "PASS"

@@ -18,6 +18,7 @@ class MarketData:
         returns (Optional[Dict[str, List[float]]]): Historical return series indexed by symbol.
         correlation_matrix (Optional[Dict[str, Dict[str, float]]]): Asset correlation matrix mapped as dict[sym1][sym2] -> float.
         currency_exposure_matrix (Optional[Dict[str, Dict[str, float]]]): Default currency exposure factor breakdown per symbol.
+        fx_rates (Optional[Dict[str, float]]): FX rates indexed by currency pair (e.g. {'GBPUSD': 1.28, 'EURUSD': 1.09}).
     """
     atr: Optional[Dict[str, float]] = field(default_factory=dict)
     reference_atr: Optional[Dict[str, float]] = field(default_factory=dict)
@@ -25,3 +26,4 @@ class MarketData:
     returns: Optional[Dict[str, List[float]]] = field(default_factory=dict)
     correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None
     currency_exposure_matrix: Optional[Dict[str, Dict[str, float]]] = field(default_factory=dict)
+    fx_rates: Optional[Dict[str, float]] = field(default_factory=dict)

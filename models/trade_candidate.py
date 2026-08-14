@@ -3,7 +3,7 @@ Trade candidate data model.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 @dataclass
@@ -60,3 +60,22 @@ class TradeCandidate:
     threshold_long: Optional[Any] = None
     slope_short: Optional[Any] = None
     threshold_short: Optional[Any] = None
+
+    def validate_stop_direction(self) -> Tuple[bool, str]:
+        """
+        Validates stop loss price direction relative to entry price.
+
+        LONG: stop_price < entry_price
+        SHORT: stop_price > entry_price
+        """
+        side_clean = self.side.lower()
+        if side_clean == "long":
+            if self.proposed_stop_price >= self.entry_price:
+                return False, f"LONG stop price ({self.proposed_stop_price}) must be less than entry price ({self.entry_price})"
+        elif side_clean == "short":
+            if self.proposed_stop_price <= self.entry_price:
+                return False, f"SHORT stop price ({self.proposed_stop_price}) must be greater than entry price ({self.entry_price})"
+        else:
+            return False, f"Invalid trade side '{self.side}'. Must be 'long' or 'short'."
+
+        return True, "Valid stop direction"

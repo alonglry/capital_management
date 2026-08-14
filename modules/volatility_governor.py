@@ -2,6 +2,7 @@
 Module 4 — Volatility Governor.
 """
 
+import math
 from typing import Any, Dict, Optional
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
@@ -37,8 +38,9 @@ class VolatilityGovernorModule(RiskTransformer):
         }
 
     def _resolve_atr_ratio(self, state: CapitalManagementState) -> Optional[float]:
-        if state.trade.atr_ratio is not None and state.trade.atr_ratio > 0:
-            return float(state.trade.atr_ratio)
+        if state.trade.atr_ratio is not None and isinstance(state.trade.atr_ratio, (int, float)) and state.trade.atr_ratio > 0:
+            if not math.isnan(state.trade.atr_ratio) and not math.isinf(state.trade.atr_ratio):
+                return float(state.trade.atr_ratio)
 
         symbol = state.trade.symbol
         curr_atr = state.trade.atr
@@ -50,7 +52,8 @@ class VolatilityGovernorModule(RiskTransformer):
             ref_atr = state.market_data.reference_atr.get(symbol)
 
         if curr_atr is not None and ref_atr is not None and isinstance(ref_atr, (int, float)) and ref_atr > 0:
-            return float(curr_atr / ref_atr)
+            if not math.isnan(curr_atr) and not math.isinf(curr_atr) and not math.isnan(ref_atr) and not math.isinf(ref_atr):
+                return float(curr_atr / ref_atr)
 
         return None
 
@@ -58,9 +61,9 @@ class VolatilityGovernorModule(RiskTransformer):
         atr_ratio = self._resolve_atr_ratio(state)
         policy = state.config.missing_volatility_policy.lower()
 
-        if atr_ratio is None:
+        if atr_ratio is None or atr_ratio < 0 or math.isnan(atr_ratio) or math.isinf(atr_ratio):
             if policy == "reject":
-                state.add_rejection(f"Missing volatility / ATR metrics for symbol '{state.trade.symbol}' (policy = reject)")
+                state.add_rejection(f"Missing or invalid volatility / ATR metrics for symbol '{state.trade.symbol}' (policy = reject)")
                 state.volatility_multiplier = 0.0
                 state.governed_risk_budget = 0.0
                 state.module_results[self.name] = ModuleResult(
@@ -86,6 +89,9 @@ class VolatilityGovernorModule(RiskTransformer):
                 if rule.min_ratio <= atr_ratio < rule.max_ratio:
                     multiplier = rule.multiplier
                     break
+
+        # Explicit multiplier bounds check: 0 <= multiplier <= 2.0
+        multiplier = max(0.0, min(2.0, float(multiplier)))
 
         prev_budget = state.governed_risk_budget
         r2 = prev_budget * multiplier

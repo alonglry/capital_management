@@ -2,6 +2,7 @@
 Module 2 — Dynamic Conviction Risk Allocator.
 """
 
+import math
 from typing import Any, Dict, Optional, Union
 
 import numpy as np
@@ -71,14 +72,22 @@ class ConvictionRiskAllocatorModule(RiskTransformer):
         if is_vector:
             s = pd.Series(slope) if not isinstance(slope, pd.Series) else slope
             t = pd.Series(threshold) if not isinstance(threshold, pd.Series) else threshold
+            # Guard against invalid negative or NaN thresholds
+            t = t.apply(lambda v: v if pd.notna(v) and float(v) > 0 else np.nan)
+            s = s.apply(lambda v: v if pd.notna(v) and not math.isinf(float(v)) else 0.0)
+
             max_c = t * mult
             denom = max_c - t
             denom = denom.replace(0, np.nan)
             raw = (s - t) / denom
             return raw.fillna(0.0).clip(lower=0.0, upper=1.0)
         else:
-            s_val = float(slope) if slope is not None and pd.notna(slope) else 0.0
-            t_val = float(threshold) if threshold is not None and pd.notna(threshold) else 0.0
+            s_val = float(slope) if slope is not None and pd.notna(slope) and not math.isinf(float(slope)) else 0.0
+            t_val = float(threshold) if threshold is not None and pd.notna(threshold) and not math.isinf(float(threshold)) else 0.0
+
+            if t_val <= 0:
+                return 0.0
+
             max_c = t_val * mult
             denom = max_c - t_val
             if abs(denom) < 1e-12:
@@ -170,7 +179,7 @@ class ConvictionRiskAllocatorModule(RiskTransformer):
         status = "PASS"
         if is_vector:
             reason = f"Calculated vectorized conviction requested risk budget (Series length={len(requested_budget)})"
-            msg = f"Vectorized conviction completed"
+            msg = "Vectorized conviction completed"
         else:
             reason = f"Calculated conviction requested risk budget = ${requested_budget:,.2f} ({requested_pct:.2%})"
             msg = f"Long = {c_long:.2f}, Short = {c_short:.2f}, Net = {net_c:.2f}, Str = {dir_str:.2f}, Conflict = {sig_conflict:.2f} -> Requested Risk = ${requested_budget:,.2f}"

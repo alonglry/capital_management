@@ -15,11 +15,16 @@ from capital_management.modules.base_module import RiskConstraint
 class FactorExposureModule(RiskConstraint):
     """
     Module 8: Hard risk constraint computing factor-risk capacity for currency factors and equity factors.
+    Preserves sign for long (+1.0) and short (-1.0) positions across base/quote currencies and equity factors.
     """
 
     @property
     def name(self) -> str:
         return "factor_check"
+
+    @property
+    def module_type(self) -> str:
+        return "constraint"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
@@ -43,8 +48,9 @@ class FactorExposureModule(RiskConstraint):
 
         if item.currency_exposure:
             scale = item.quantity if isinstance(item, Position) else 1.0
+            direction = 1.0 if item.side.lower() == "long" else -1.0
             for ccy, weight in item.currency_exposure.items():
-                factors[ccy] = factors.get(ccy, 0.0) + (weight * scale)
+                factors[ccy] = factors.get(ccy, 0.0) + (weight * scale * direction)
         elif item.asset_class.upper() == "FOREX" and len(item.symbol) >= 6:
             base_ccy = item.symbol[:3].upper()
             quote_ccy = item.symbol[3:6].upper()
@@ -61,13 +67,13 @@ class FactorExposureModule(RiskConstraint):
                 pos_val = est_shares * item.entry_price
 
             weight = pos_val / equity if equity > 0 else 0.0
+            direction = 1.0 if item.side.lower() == "long" else -1.0
 
             if item.sector:
-                factors[item.sector] = factors.get(item.sector, 0.0) + weight
+                factors[item.sector] = factors.get(item.sector, 0.0) + (weight * direction)
             if item.country:
-                factors[item.country] = factors.get(item.country, 0.0) + weight
+                factors[item.country] = factors.get(item.country, 0.0) + (weight * direction)
             if item.beta is not None:
-                direction = 1.0 if item.side.lower() == "long" else -1.0
                 factors["market_beta"] = factors.get("market_beta", 0.0) + (item.beta * direction * weight)
 
         return factors

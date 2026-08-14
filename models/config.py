@@ -56,6 +56,10 @@ class ConvictionRiskConfig:
     mapping_type: str = "linear"
     power_gamma: float = 1.0
 
+    def __post_init__(self):
+        if self.min_multiplier < 0 or self.max_multiplier < self.min_multiplier:
+            raise ValueError(f"Invalid conviction multipliers: min={self.min_multiplier}, max={self.max_multiplier}")
+
 
 def default_drawdown_rules() -> List[DrawdownRule]:
     return [
@@ -133,6 +137,7 @@ def default_transaction_costs() -> Dict[str, Any]:
         "default_spread": 0.0,
         "default_commission": 0.0,
         "default_slippage": 0.0,
+        "commission_type": "per_unit",  # 'per_unit', 'fixed', 'percentage'
     }
 
 
@@ -163,6 +168,7 @@ class CapitalManagementConfig:
     factor_fallback_policy: str = "reject"  # 'reject', 'reduce', 'ignore_module'
     stress_policy: str = "reject"  # 'reject', 'reduce'
     slippage_unit: str = "percentage"  # 'price', 'pips', 'percentage'
+    require_verified_instrument_metadata: str = "reject"  # 'reject' or 'allow_legacy'
 
     drawdown_rules: List[DrawdownRule] = field(default_factory=default_drawdown_rules)
     volatility_rules: List[VolatilityRule] = field(default_factory=default_volatility_rules)
@@ -173,6 +179,18 @@ class CapitalManagementConfig:
     rounding_rules: Dict[str, Any] = field(default_factory=default_rounding_rules)
     modules: Dict[str, bool] = field(default_factory=default_modules_config)
     conviction_risk: ConvictionRiskConfig = field(default_factory=ConvictionRiskConfig)
+
+    def __post_init__(self):
+        if not (0.0 <= self.base_risk_pct <= 1.0):
+            raise ValueError(f"base_risk_pct ({self.base_risk_pct}) must be between 0.0 and 1.0")
+        if not (0.0 <= self.max_trade_risk_pct <= 1.0):
+            raise ValueError(f"max_trade_risk_pct ({self.max_trade_risk_pct}) must be between 0.0 and 1.0")
+        if not (0.0 <= self.max_portfolio_heat_pct <= 1.0):
+            raise ValueError(f"max_portfolio_heat_pct ({self.max_portfolio_heat_pct}) must be between 0.0 and 1.0")
+        if not (0.0 <= self.max_correlation_adjusted_risk_pct <= 1.0):
+            raise ValueError(f"max_correlation_adjusted_risk_pct ({self.max_correlation_adjusted_risk_pct}) must be between 0.0 and 1.0")
+        if self.slippage_unit.lower() not in ("price", "pips", "percentage"):
+            raise ValueError(f"Invalid slippage_unit '{self.slippage_unit}'. Must be 'price', 'pips', or 'percentage'.")
 
     def is_module_enabled(self, module_name: str) -> bool:
         """

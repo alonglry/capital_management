@@ -8,6 +8,7 @@ from typing import Any, Dict
 from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.modules.base_module import BaseRiskModule
+from capital_management.modules.transaction_cost import calculate_transaction_cost
 
 
 class ActualRiskReconciliationModule(BaseRiskModule):
@@ -15,12 +16,16 @@ class ActualRiskReconciliationModule(BaseRiskModule):
     Module 13: Recalculates actual risks from scratch after executable sizing and cost calculations.
 
     Central Invariant Enforced:
-        actual_total_risk <= permitted_risk_budget
+        actual_total_risk = actual_stop_loss_risk + actual_transaction_cost <= permitted_risk_budget
     """
 
     @property
     def name(self) -> str:
         return "risk_reconciliation"
+
+    @property
+    def module_type(self) -> str:
+        return "reconciliation"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
@@ -56,6 +61,7 @@ class ActualRiskReconciliationModule(BaseRiskModule):
             state.actual_total_risk = 0.0
             state.final_position_size = 0.0
             state.executable_position_size = 0.0
+            state.final_risk = 0.0
             status = "PASS" if permitted == 0 else "REJECT"
             reason = "Zero position size or non-positive permitted risk budget"
             state.module_results[self.name] = ModuleResult(
@@ -68,25 +74,28 @@ class ActualRiskReconciliationModule(BaseRiskModule):
             )
             return state
 
-        # Unit total risk = risk_per_unit + tx_cost_per_unit
-        tx_cost_per_unit = state.total_transaction_cost / size if size > 0 else 0.0
-        unit_total_risk = risk_per_unit + tx_cost_per_unit
-
+        # Recalculate transaction costs from scratch for exact quantity
+        _, _, _, actual_tx_cost = calculate_transaction_cost(state, size)
         actual_stop_risk = size * risk_per_unit
-        actual_tx_cost = size * tx_cost_per_unit
         actual_total = actual_stop_risk + actual_tx_cost
 
         # Central Invariant Check: actual_total_risk <= permitted_risk_budget
         if actual_total > permitted + 1e-6:
-            # Step down size until invariant holds
-            max_safe_units = math.floor((permitted / unit_total_risk) / qty_inc) * qty_inc
-            if qty_inc >= 1.0:
-                max_safe_units = float(int(max_safe_units))
-            else:
-                decimals = max(0, -int(math.floor(math.log10(qty_inc))))
-                max_safe_units = round(max_safe_units, decimals)
+            curr_size = size
+            while curr_size >= min_qty:
+                stop_risk = curr_size * risk_per_unit
+                _, _, _, tx_cost = calculate_transaction_cost(state, curr_size)
+                tot_risk = stop_risk + tx_cost
+                if tot_risk <= permitted + 1e-6:
+                    break
+                next_size = curr_size - qty_inc
+                if qty_inc >= 1.0:
+                    curr_size = float(int(round(next_size)))
+                else:
+                    decimals = max(0, -int(math.floor(math.log10(qty_inc))))
+                    curr_size = round(next_size, decimals)
 
-            if max_safe_units < min_qty:
+            if curr_size < min_qty:
                 state.add_rejection(
                     f"Actual total risk (${actual_total:,.2f}) exceeds permitted budget (${permitted:,.2f}). "
                     f"Stepping down position size drops below minimum quantity ({min_qty})"
@@ -100,11 +109,11 @@ class ActualRiskReconciliationModule(BaseRiskModule):
             else:
                 state.add_warning(
                     f"Actual total risk (${actual_total:,.2f}) exceeded permitted budget (${permitted:,.2f}); "
-                    f"stepped down executable position size from {size} to {max_safe_units}"
+                    f"stepped down executable position size from {size} to {curr_size}"
                 )
-                size = max_safe_units
+                size = curr_size
                 actual_stop_risk = size * risk_per_unit
-                actual_tx_cost = size * tx_cost_per_unit
+                _, _, _, actual_tx_cost = calculate_transaction_cost(state, size)
                 actual_total = actual_stop_risk + actual_tx_cost
                 status = "PASS"
                 reason = f"Reconciled actual total risk (${actual_total:,.2f}) to permitted budget (${permitted:,.2f})"
@@ -117,7 +126,8 @@ class ActualRiskReconciliationModule(BaseRiskModule):
         state.actual_stop_loss_risk = actual_stop_risk
         state.actual_transaction_cost = actual_tx_cost
         state.actual_total_risk = actual_total
-        state.final_risk = actual_stop_risk
+        # Section 5: final_risk MUST represent total effective risk (actual_total_risk)
+        state.final_risk = actual_total
 
         # Recalculate stress loss for final reconciled position size
         if inst is not None and size > 0:
@@ -125,9 +135,11 @@ class ActualRiskReconciliationModule(BaseRiskModule):
             stress_limits = state.config.stress_limits
             gap_pct = stress_limits.get("gap_pct", 0.01)
             extra_slip_pct = stress_limits.get("extra_slippage_pct", 0.005)
-            gap_loss = size * inst.contract_size * (entry * gap_pct)
-            slip_loss = size * inst.contract_size * (entry * extra_slip_pct)
-            state.stress_loss = actual_stop_risk + gap_loss + slip_loss
+            fx_rate = inst.get_fx_conversion_rate(state.account.currency, entry, state.market_data.fx_rates) or 1.0
+
+            gap_loss = (size * inst.contract_size * inst.point_value * (entry * gap_pct)) * fx_rate
+            slip_loss = (size * inst.contract_size * inst.point_value * (entry * extra_slip_pct)) * fx_rate
+            state.stress_loss = actual_stop_risk + actual_tx_cost + gap_loss + slip_loss
             state.stress_loss_pct = state.stress_loss / state.account.equity if state.account.equity > 0 else 0.0
 
         msg = f"Reconciled Actual Total Risk = ${actual_total:,.2f} (Stop Risk = ${actual_stop_risk:,.2f}, Tx Cost = ${actual_tx_cost:,.2f}) <= Permitted = ${permitted:,.2f}, Size = {size}"

@@ -11,89 +11,101 @@ It determines strategy conviction demand, maximum permissible risk budget, and f
 The engine uses a pipeline-based modular design. Every risk management step is an independent module with explicit input and output schemas, no hidden state, and complete auditability.
 
 ```text
-Portfolio State + Trade Candidate + Configuration + Market Data
-                              ↓
-                CapitalManagementPipeline
-                              ↓
+Portfolio State + Trade Candidate + Configuration + Market Data (+ InstrumentSpec)
+                                      ↓
+                         CapitalManagementPipeline
+                                      ↓
   [1] Base Risk Budget             (R0 = Equity × Base Risk %)
   [2] Conviction Risk Allocator    (R_requested = R0 × Conviction_Mult × Conflict_Mult)
   [3] Drawdown Governor           (R1 = R_prev × Drawdown Multiplier)
   [4] Volatility Governor         (R2 = R1 × Volatility Multiplier)
   [5] Strategy Allocation         (R3 = R2 × Strategy Multiplier)
   [6] Portfolio Heat Check        (Capacity check against max heat %)
-  [7] Correlation / Risk Check    (sqrt(r^T Σ r) matrix analysis)
+  [7] Correlation Risk Check      (Correlation-adjusted stop-loss risk proxy matrix analysis)
   [8] Factor Exposure Check       (FX Currency breakdown & Equity Factors)
-  [9] Stop-Loss Risk Calculation  (stop distance & pip / point conversion)
- [10] Position Sizing             (Equities shares & Forex lots/units)
- [11] Transaction Cost Adjustment (Spread, commission, slippage cost sizing)
- [12] Stress Test                 (Gap & extreme execution stress loss limits)
- [13] Final Risk Validation       (Gate check across all 8 criteria)
-                              ↓
-                   CapitalManagementResult
+  [9] Stop-Loss Risk Calculation  (Stop distance & account currency conversion)
+ [10] Position Sizing             (Shares/Lots with broker rules & iterative cost loop)
+ [11] Transaction Cost Module     (Canonical cost calculation: spread, commission, slippage)
+ [12] Stress Test                 (Stress loss capacity constraint & gap/slippage scenario)
+ [13] Actual Risk Reconciliation  (Recalculates actual_total_risk = actual_stop + actual_cost)
+ [14] Final Risk Validation       (Safety gate check across 17+ invariant criteria)
+                                      ↓
+                           CapitalManagementResult
 ```
 
 ---
 
-## 2. Dynamic Conviction Risk Allocator (`ConvictionRiskAllocatorModule`)
+## 2. Risk Budget Accounting Stages
 
-The `ConvictionRiskAllocatorModule` converts strategy conviction (long & short slopes/thresholds) into a **requested monetary risk budget**.
-
-### Conviction Formulas
-
-1. **Side Convictions**:
-   $$\text{max\_conviction}_{\text{side}} = \text{threshold}_{\text{side}} \times \text{conviction\_threshold\_multiplier}$$
-   $$\text{raw}_{\text{side}} = \frac{\text{slope}_{\text{side}} - \text{threshold}_{\text{side}}}{\text{max\_conviction}_{\text{side}} - \text{threshold}_{\text{side}}}$$
-   $$\text{conviction}_{\text{side}} = \text{clip}(\text{raw}_{\text{side}}, 0.0, 1.0)$$
-
-2. **Net Conviction & Signal Conflict**:
-   $$\text{net\_conviction} = \text{long\_conviction} - \text{short\_conviction}$$
-   $$\text{directional\_strength} = |\text{net\_conviction}|$$
-   $$\text{signal\_conflict} = \min(\text{long\_conviction}, \text{short\_conviction})$$
-
-3. **Conflict Penalty & Conviction Mapping**:
-   $$\text{conflict\_multiplier} = 1 - \text{conflict\_penalty} \times \text{signal\_conflict}$$
-   $$\text{conviction\_multiplier} = \text{min\_mult} + (\text{max\_mult} - \text{min\_mult}) \times \text{mapping}(\text{directional\_strength})$$
-   $$\text{R}_{\text{requested}} = \text{R}_{\text{base}} \times \text{conviction\_multiplier} \times \text{conflict\_multiplier}$$
-
-Supported mapping implementations (`ConvictionMapping`):
-- `LinearConvictionMapping`: $\text{mapping}(x) = x$
-- `PowerConvictionMapping`: $\text{mapping}(x) = x^{\gamma}$ ($\gamma$ configurable)
+- `base_risk_budget`: Initial unconstrained risk budget ($R_0 = \text{Equity} \times \text{BaseRisk\%}$).
+- `requested_risk_budget`: Strategy conviction-scaled risk budget ($R_{\text{requested}}$).
+- `governed_risk_budget`: Risk budget after soft governors (Drawdown, Volatility, Strategy Allocation).
+- `permitted_risk_budget`: Hard constrained ceiling computed as:
+  $$\text{permitted\_risk\_budget} = \min(\text{governed\_risk\_budget}, \text{trade\_capacity}, \text{heat\_capacity}, \text{correlation\_capacity}, \text{factor\_capacity}, \text{stress\_capacity})$$
+- `actual_stop_loss_risk`: Pure monetary loss at stop loss level ($q \times \text{monetary\_risk\_per\_unit}$).
+- `actual_transaction_cost`: Total execution costs ($C(q)$: spread, commission, slippage).
+- `actual_total_risk`: Effective total risk ($= \text{actual\_stop\_loss\_risk} + \text{actual\_transaction\_cost} \le \text{permitted\_risk\_budget}$).
 
 ---
 
-## 3. Directory Structure
+## 3. Instrument Metadata & Currency Conversion Layer
+
+`InstrumentSpec` defines sizing increments, contract sizes, and valuations.
+- `instrument_metadata_source`: Options `('explicit', 'broker', 'exchange', 'market_data', 'legacy_default')`. Production capital management rejects unverified `legacy_default` metadata.
+- **Account Currency Conversion**: Automatically converts quote currency to account settlement currency:
+  - Direct conversion if quote currency equals account currency.
+  - Inversion ($1/\text{price}$) if base currency equals account currency.
+  - Lookup via `market_data.fx_rates` (e.g. `GBPUSD` rate for a GBP quote instrument with USD account). Missing conversion rates trigger a hard rejection.
+
+---
+
+## 4. Position Sizing & Transaction Cost Iteration Loop
+
+Position sizing converts `permitted_risk_budget` into executable units:
+1. Validates broker rules (`min_quantity <= max_quantity`, `quantity_increment > 0`, increment alignment).
+2. Computes floor-rounded theoretical quantity $q = \lfloor (\text{budget} / \text{risk\_per\_unit}) / \text{qty\_inc} \rfloor \times \text{qty\_inc}$.
+3. Calls canonical `calculate_transaction_cost(state, q)` to compute exact costs $C(q)$.
+4. Iteratively steps down $q$ by `quantity_increment` until:
+   $$\text{stop\_loss\_risk}(q) + \text{transaction\_cost}(q) \le \text{permitted\_risk\_budget}$$
+5. If $q < \text{min\_quantity}$, the trade is rejected.
+
+---
+
+## 5. Directory Structure
 
 ```text
 capital_management/
 ├── models/
 │   ├── account.py           # AccountState
 │   ├── portfolio.py         # Position & PortfolioState
-│   ├── trade_candidate.py   # TradeCandidate
-│   ├── market_data.py       # MarketData
+│   ├── trade_candidate.py   # TradeCandidate (with validate_stop_direction)
+│   ├── market_data.py       # MarketData (with fx_rates)
 │   ├── config.py            # CapitalManagementConfig & ConvictionRiskConfig
+│   ├── instrument.py        # InstrumentSpec & FX conversion layer
 │   ├── state.py             # CapitalManagementState & ModuleResult
 │   └── result.py            # CapitalManagementResult & trace models
 ├── modules/
-│   ├── base_module.py       # BaseRiskModule Abstract Base Class
+│   ├── base_module.py       # BaseRiskModule, RiskTransformer, RiskConstraint
 │   ├── base_risk.py         # Module 1: Base Risk Budget
-│   ├── conviction_allocator.py # Module 2: Conviction Risk Allocator
+│   ├── conviction_allocator.py # Module 2: Dynamic Conviction Risk Allocator
 │   ├── conviction_mapping.py   # ConvictionMapping, LinearConvictionMapping, PowerConvictionMapping
 │   ├── drawdown_governor.py # Module 3: Drawdown Governor
 │   ├── volatility_governor.py # Module 4: Volatility Governor
 │   ├── strategy_allocation.py# Module 5: Strategy Allocation
-│   ├── portfolio_heat.py    # Module 6: Portfolio Heat
-│   ├── correlation_risk.py # Module 7: Correlation-Adjusted Portfolio Risk
-│   ├── factor_exposure.py  # Module 8: Factor Exposure
+│   ├── portfolio_heat.py    # Module 6: Portfolio Heat Constraint
+│   ├── correlation_risk.py # Module 7: Correlation-Adjusted Risk Constraint
+│   ├── factor_exposure.py  # Module 8: Factor Exposure Constraint
 │   ├── stop_risk.py        # Module 9: Stop-Loss Risk Calculation
-│   ├── position_sizing.py  # Module 10: Position Sizing
-│   ├── transaction_cost.py # Module 11: Transaction Cost Adjustment
-│   ├── stress_test.py      # Module 12: Stress Test
-│   └── final_validation.py # Module 13: Final Risk Validation
+│   ├── position_sizing.py  # Module 10: Position Sizing & Cost Iteration Loop
+│   ├── transaction_cost.py # Module 11: Transaction Cost Module (Canonical cost function)
+│   ├── stress_test.py      # Module 12: Stress Test Capacity Constraint
+│   ├── risk_reconciliation.py # Module 13: Actual Risk Reconciliation
+│   └── final_validation.py # Module 14: Final Risk Validation Safety Gate
 ├── pipeline/
 │   └── capital_management_pipeline.py # Core generic pipeline executor
-├── merton_dynamic.py        # Deprecated legacy Merton functions with compatibility wrapper
+├── merton_dynamic.py        # Deprecated legacy Merton functions
 ├── tests/
-│   ├── test_base_risk.py ... test_conviction_allocator.py ... test_pipeline.py
+│   ├── test_base_risk.py ... test_conviction_allocator.py ... test_invariants.py
 ├── examples/
 │   ├── example_equity.py
 │   ├── example_forex.py
@@ -104,15 +116,15 @@ capital_management/
 
 ---
 
-## 4. Quick Start Usage
+## 6. Quick Start Usage
 
-### Equity Trade Example with Conviction
+### Equity Trade Example with Conviction & Custom FX Rates
 
 ```python
-from capital_management.models import AccountState, TradeCandidate, CapitalManagementConfig
+from capital_management.models import AccountState, TradeCandidate, InstrumentSpec, MarketData, CapitalManagementConfig
 from capital_management.pipeline import CapitalManagementPipeline
 
-account = AccountState(equity=100000.0, cash=75000.0)
+account = AccountState(equity=100000.0, cash=75000.0, currency="USD")
 trade = TradeCandidate(
     symbol="AAPL",
     asset_class="equity",
@@ -122,54 +134,37 @@ trade = TradeCandidate(
     strategy_id="momentum",
     slope_long=1.30,
     threshold_long=1.00,
-    slope_short=0.20,
-    threshold_short=1.00,
+)
+instrument = InstrumentSpec(
+    symbol="AAPL",
+    asset_class="EQUITY",
+    contract_size=1.0,
+    quantity_increment=1.0,
+    min_quantity=1.0,
+    max_quantity=10000.0,
+    point_value=1.0,
+    quote_currency="USD",
+    instrument_metadata_source="explicit",
 )
 
 pipeline = CapitalManagementPipeline()
-result = pipeline.run(account=account, portfolio=[], trade=trade)
+result = pipeline.run(account=account, portfolio=[], trade=trade, instrument=instrument)
 
 print(f"Approved: {result.approved}")
-print(f"Base Risk Budget: ${result.base_risk_budget:,.2f}")
-print(f"Requested Risk Budget: ${result.requested_risk_budget:,.2f}")
-print(f"Final Permitted Risk: ${result.final_risk_budget:,.2f}")
-print(f"Final Position Size: {result.final_position_size} shares")
+print(f"Permitted Risk Budget: ${result.permitted_risk_budget:,.2f}")
+print(f"Executable Size: {result.final_position_size} shares")
+print(f"Actual Total Risk: ${result.actual_total_risk:,.2f}")
+print(f"Binding Constraints: {result.binding_constraints}")
 ```
 
 ---
 
-## 5. Enabling / Disabling Modules
+## 7. Running Unit Tests and Examples
 
-Modules can be enabled or disabled via `CapitalManagementConfig.modules`:
-
-```python
-config = CapitalManagementConfig(
-    modules={
-        "base_risk": True,
-        "conviction_allocator": True,
-        "drawdown_governor": True,
-        "volatility_governor": False,
-        "strategy_allocation": True,
-        "portfolio_heat": True,
-        "correlation_check": True,
-        "factor_check": True,
-        "stop_risk": True,
-        "position_sizing": True,
-        "transaction_cost": True,
-        "stress_test": True,
-        "final_validation": True,
-    }
-)
-```
-
----
-
-## 6. Running Unit Tests and Examples
-
-Run all unit tests:
+Run all unit tests with `.venv_fx`:
 
 ```bash
-.venv_fx/bin/python -m unittest discover -s capital_management/tests
+.venv_fx/bin/pytest capital_management/tests
 ```
 
 Run example scripts:

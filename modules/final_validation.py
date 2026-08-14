@@ -11,12 +11,16 @@ from capital_management.modules.base_module import BaseRiskModule
 
 class FinalValidationModule(BaseRiskModule):
     """
-    Module 14: Final risk validation gate enforcing 17 explicit safety conditions.
+    Module 14: Final risk validation gate enforcing explicit safety conditions.
     """
 
     @property
     def name(self) -> str:
         return "final_validation"
+
+    @property
+    def module_type(self) -> str:
+        return "validation"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
@@ -32,6 +36,7 @@ class FinalValidationModule(BaseRiskModule):
             "actual_total_risk": state.actual_total_risk,
             "permitted_risk_budget": state.permitted_risk_budget,
             "rejection_reasons": list(state.rejection_reasons),
+            "binding_constraints": list(state.binding_constraints),
         }
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
@@ -41,6 +46,26 @@ class FinalValidationModule(BaseRiskModule):
         stop = state.trade.proposed_stop_price
         stop_dist = state.stop_distance
         inst = state.instrument
+
+        # Determine binding constraints
+        binding: list = []
+        p_budget = state.permitted_risk_budget
+        tol = 1e-4
+
+        if abs(state.trade_risk_capacity - p_budget) <= tol:
+            binding.append("trade_risk_capacity")
+        if abs(state.portfolio_heat_capacity - p_budget) <= tol:
+            binding.append("portfolio_heat")
+        if abs(state.correlation_risk_capacity - p_budget) <= tol:
+            binding.append("correlation")
+        if abs(state.factor_risk_capacity - p_budget) <= tol:
+            binding.append("factor")
+        if abs(state.stress_risk_capacity - p_budget) <= tol:
+            binding.append("stress")
+        if not binding:
+            binding.append("governed_risk_budget")
+
+        state.binding_constraints = binding
 
         # 1. Entry price valid
         if entry <= 0 or math.isnan(entry) or math.isinf(entry):
@@ -60,13 +85,14 @@ class FinalValidationModule(BaseRiskModule):
 
         # 5 & 6. Quantity respects increment, min, max
         if inst is not None:
-            if size < inst.min_quantity - 1e-6:
+            if size > 0 and size < inst.min_quantity - 1e-6:
                 state.add_rejection(f"Position quantity ({size}) is below minimum allowed ({inst.min_quantity})")
             if size > inst.max_quantity + 1e-6:
                 state.add_rejection(f"Position quantity ({size}) exceeds maximum allowed ({inst.max_quantity})")
-            inc_rem = abs(size / inst.quantity_increment - round(size / inst.quantity_increment))
-            if inc_rem > 1e-4:
-                state.add_rejection(f"Position quantity ({size}) does not respect quantity increment ({inst.quantity_increment})")
+            if size > 0:
+                inc_rem = abs(size / inst.quantity_increment - round(size / inst.quantity_increment))
+                if inc_rem > 1e-4:
+                    state.add_rejection(f"Position quantity ({size}) does not respect quantity increment ({inst.quantity_increment})")
 
         # 7. Actual stop-loss risk <= permitted risk
         if state.actual_stop_loss_risk > state.permitted_risk_budget + 1e-4:
@@ -131,13 +157,17 @@ class FinalValidationModule(BaseRiskModule):
         # Set final approval boolean
         state.approved = (len(state.rejection_reasons) == 0)
 
+        # Section 26: If not approved, force final_position_size = 0.0
+        if not state.approved:
+            state.final_position_size = 0.0
+
         status = "PASS" if state.approved else "REJECT"
         if state.approved:
             reason = f"Trade APPROVED: Executable size = {size:,.4f}, Actual total risk = ${state.actual_total_risk:,.2f} <= Permitted budget = ${state.permitted_risk_budget:,.2f}"
         else:
             reason = f"Trade REJECTED due to {len(state.rejection_reasons)} safety gate violation(s)."
 
-        msg = f"Approved = {state.approved}, Executable Size = {size:,.4f}, Actual Risk = ${state.actual_total_risk:,.2f}, Permitted = ${state.permitted_risk_budget:,.2f}, Status = {status}"
+        msg = f"Approved = {state.approved}, Executable Size = {state.final_position_size:,.4f}, Actual Risk = ${state.actual_total_risk:,.2f}, Permitted = ${state.permitted_risk_budget:,.2f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

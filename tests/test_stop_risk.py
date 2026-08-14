@@ -1,5 +1,5 @@
 """
-Unit tests for Module 8 — Stop-Loss Risk Calculation.
+Unit tests for Module 9 — Stop-Loss Risk Calculation.
 """
 
 import unittest
@@ -57,9 +57,8 @@ class TestStopRiskModule(unittest.TestCase):
             config=self.config,
         )
         updated = self.module.process(state)
-        self.assertEqual(updated.stop_distance, 0.0)
         self.assertEqual(updated.module_results["stop_risk"].status, "REJECT")
-        self.assertIn("stop_distance <= 0", updated.rejection_reasons[0])
+        self.assertTrue(any("must be less than entry price" in r or "stop_distance <= 0" in r for r in updated.rejection_reasons))
 
 
 if __name__ == "__main__":

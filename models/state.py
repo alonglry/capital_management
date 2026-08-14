@@ -63,6 +63,7 @@ class CapitalManagementState:
 
     # Final Permitted Risk Budget
     permitted_risk_budget: float = 0.0
+    binding_constraints: List[str] = field(default_factory=list)
 
     # Conviction Metrics
     long_conviction: Any = 0.0
@@ -133,6 +134,20 @@ class CapitalManagementState:
     warnings: List[str] = field(default_factory=list)
     rejection_reasons: List[str] = field(default_factory=list)
     trace_logs: List[str] = field(default_factory=list)
+
+    @property
+    def correlation_adjusted_stop_risk_pct(self) -> float:
+        """
+        Alias for correlation_adjusted_risk (% of equity stop loss risk proxy).
+        """
+        return self.correlation_adjusted_risk
+
+    @property
+    def projected_correlation_adjusted_stop_risk_pct(self) -> float:
+        """
+        Alias for projected_correlation_adjusted_risk (% of equity stop loss risk proxy).
+        """
+        return self.projected_correlation_adjusted_risk
 
     @property
     def adjusted_risk_budget(self) -> float:

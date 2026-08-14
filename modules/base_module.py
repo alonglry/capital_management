@@ -21,6 +21,14 @@ class BaseRiskModule(ABC):
         """
         pass
 
+    @property
+    def module_type(self) -> str:
+        """
+        Architectural role declaration for dependency checking.
+        Options: 'transformer', 'constraint', 'calculation', 'sizing', 'execution', 'reconciliation', 'validation'.
+        """
+        return "calculation"
+
     def process(self, state: CapitalManagementState) -> CapitalManagementState:
         """
         Processes state through risk module. Handles configuration toggling and state logging.
@@ -28,7 +36,7 @@ class BaseRiskModule(ABC):
         enabled = state.config.is_module_enabled(self.name)
 
         if not enabled:
-            state.add_trace(self.name, f"Module disabled in config. Status = SKIPPED")
+            state.add_trace(self.name, "Module disabled in config. Status = SKIPPED")
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
                 enabled=False,
@@ -60,7 +68,10 @@ class RiskTransformer(BaseRiskModule, ABC):
     Base class for soft risk governors that scale/modify a risk budget (risk_out = risk_in * multiplier).
     Examples: conviction, drawdown, volatility, strategy allocation.
     """
-    pass
+
+    @property
+    def module_type(self) -> str:
+        return "transformer"
 
 
 class RiskConstraint(BaseRiskModule, ABC):
@@ -68,4 +79,7 @@ class RiskConstraint(BaseRiskModule, ABC):
     Base class for hard risk constraints that calculate maximum permissible risk capacity (risk_capacity).
     Examples: portfolio heat, correlation risk, factor exposure, stress risk.
     """
-    pass
+
+    @property
+    def module_type(self) -> str:
+        return "constraint"

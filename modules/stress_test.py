@@ -7,6 +7,7 @@ from typing import Any, Dict, Tuple
 from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.modules.base_module import RiskConstraint
+from capital_management.modules.transaction_cost import calculate_transaction_cost
 
 
 class StressTestModule(RiskConstraint):
@@ -18,6 +19,10 @@ class StressTestModule(RiskConstraint):
     @property
     def name(self) -> str:
         return "stress_test"
+
+    @property
+    def module_type(self) -> str:
+        return "constraint"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
@@ -38,7 +43,6 @@ class StressTestModule(RiskConstraint):
 
     def _calculate_losses(self, size: float, state: CapitalManagementState) -> Tuple[float, float, float]:
         entry = state.trade.entry_price
-        stop_dist = state.stop_distance
         stress_limits = state.config.stress_limits
 
         gap_pct = stress_limits.get("gap_pct", 0.01)
@@ -48,13 +52,25 @@ class StressTestModule(RiskConstraint):
             state.instrument = InstrumentSpec.create_default(state.trade.symbol, state.trade.asset_class)
         inst = state.instrument
 
-        normal_loss = size * state.monetary_risk_per_unit
-        gap_loss = size * inst.contract_size * (entry * gap_pct)
-        slip_loss = size * inst.contract_size * (entry * extra_slip_pct)
+        fx_rate = inst.get_fx_conversion_rate(state.account.currency, entry, state.market_data.fx_rates) or 1.0
 
-        stress_loss_total = normal_loss + gap_loss + slip_loss
-        stress_loss_per_unit = state.monetary_risk_per_unit + (inst.contract_size * entry * (gap_pct + extra_slip_pct))
-        return normal_loss, stress_loss_total, stress_loss_per_unit
+        # Normal total loss = stop loss risk + transaction cost
+        stop_risk = size * state.monetary_risk_per_unit if state.monetary_risk_per_unit > 0 else 0.0
+        _, _, _, tx_cost = calculate_transaction_cost(state, size)
+        normal_total_loss = stop_risk + tx_cost
+
+        # Incremental stress loss = gap loss + additional adverse slippage
+        gap_loss = (size * inst.contract_size * inst.point_value * (entry * gap_pct)) * fx_rate
+        slip_loss = (size * inst.contract_size * inst.point_value * (entry * extra_slip_pct)) * fx_rate
+        incremental_stress_loss = gap_loss + slip_loss
+
+        stress_loss_total = normal_total_loss + incremental_stress_loss
+
+        unit_tx_cost = tx_cost / size if size > 0 else 0.0
+        unit_stress_incremental = (inst.contract_size * inst.point_value * entry * (gap_pct + extra_slip_pct)) * fx_rate
+        unit_stress_total = state.monetary_risk_per_unit + unit_tx_cost + unit_stress_incremental
+
+        return normal_total_loss, stress_loss_total, unit_stress_total
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         equity = state.account.equity
@@ -84,7 +100,7 @@ class StressTestModule(RiskConstraint):
         state.stress_loss_pct = stress_loss_pct
 
         # Compute stress capacity
-        if stress_loss_per_unit > 0:
+        if stress_loss_per_unit > 0 and state.monetary_risk_per_unit > 0:
             max_stress_units = max_stress_monetary / stress_loss_per_unit
             stress_capacity = max_stress_units * state.monetary_risk_per_unit
         else:

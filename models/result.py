@@ -13,7 +13,7 @@ class CapitalManagementResult:
     """
     Structured outcome returned by the Capital Management Engine.
     Contains explicit risk accounting stages, capacities, position sizes, actual risks,
-    rejection reasons, warnings, per-module outcome records, and complete calculation trace.
+    rejection reasons, warnings, binding constraints, per-module outcome records, and complete calculation trace.
     """
     approved: bool
     symbol: str
@@ -60,6 +60,14 @@ class CapitalManagementResult:
 
     module_results: Dict[str, ModuleResult] = field(default_factory=dict)
     calculation_trace: List[str] = field(default_factory=list)
+    binding_constraints: List[str] = field(default_factory=list)
+
+    @property
+    def correlation_adjusted_stop_risk_pct(self) -> float:
+        """
+        Alias for correlation_adjusted_risk (% of equity stop loss risk proxy).
+        """
+        return self.correlation_adjusted_risk
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -94,11 +102,13 @@ class CapitalManagementResult:
             "current_portfolio_heat": self.current_portfolio_heat,
             "projected_portfolio_heat": self.projected_portfolio_heat,
             "correlation_adjusted_risk": self.correlation_adjusted_risk,
+            "correlation_adjusted_stop_risk_pct": self.correlation_adjusted_stop_risk_pct,
             "factor_exposure": self.factor_exposure,
             "transaction_cost": self.transaction_cost,
             "stress_loss": self.stress_loss,
             "rejection_reasons": self.rejection_reasons,
             "warnings": self.warnings,
+            "binding_constraints": self.binding_constraints,
             "module_results": {
                 name: {
                     "module_name": res.module_name,

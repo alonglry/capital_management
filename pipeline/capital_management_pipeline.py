@@ -10,7 +10,7 @@ from capital_management.models.instrument import InstrumentSpec
 from capital_management.models.market_data import MarketData
 from capital_management.models.portfolio import Position
 from capital_management.models.result import CapitalManagementResult
-from capital_management.models.state import CapitalManagementState
+from capital_management.models.state import CapitalManagementState, ModuleResult
 from capital_management.models.trade_candidate import TradeCandidate
 from capital_management.modules.base_module import BaseRiskModule
 from capital_management.modules.base_risk import BaseRiskBudgetModule
@@ -56,7 +56,7 @@ class CapitalManagementPipeline:
     Modular, pipeline-based execution engine for capital management.
 
     Executes a sequence of independent risk modules over a shared state object.
-    Supports modular replacement, custom step ordering, toggled modules, and full auditability.
+    Supports modular replacement, custom step ordering, toggled modules, early termination, and full auditability.
     """
 
     def __init__(self, modules: Optional[List[BaseRiskModule]] = None):
@@ -67,6 +67,27 @@ class CapitalManagementPipeline:
             modules (Optional[List[BaseRiskModule]]): List of risk module instances. If None, uses default 14-module pipeline.
         """
         self.modules: List[BaseRiskModule] = modules if modules is not None else default_pipeline_modules()
+        self.validate_module_dependencies()
+
+    def validate_module_dependencies(self) -> None:
+        """
+        Validates module order dependencies for custom module sequences.
+        """
+        names = [m.name for m in self.modules]
+
+        if "position_sizing" in names:
+            idx_sizing = names.index("position_sizing")
+            if "stop_risk" in names and names.index("stop_risk") > idx_sizing:
+                raise ValueError("Dependency Error: Module 'position_sizing' cannot execute before 'stop_risk'")
+        if "transaction_cost" in names and "position_sizing" in names:
+            if names.index("transaction_cost") < names.index("position_sizing"):
+                raise ValueError("Dependency Error: Module 'transaction_cost' cannot execute before 'position_sizing'")
+        if "risk_reconciliation" in names and "position_sizing" in names:
+            if names.index("risk_reconciliation") < names.index("position_sizing"):
+                raise ValueError("Dependency Error: Module 'risk_reconciliation' cannot execute before 'position_sizing'")
+        if "final_validation" in names and names[-1] != "final_validation":
+            # Warning or non-fatal, but validation should be last
+            pass
 
     def run(
         self,
@@ -98,9 +119,42 @@ class CapitalManagementPipeline:
 
         state.add_trace("Pipeline", f"Starting execution of {len(self.modules)} modules for {trade.symbol} ({trade.asset_class})")
 
+        has_upstream_rejection = False
+
         # Execute each module in sequence
         for module in self.modules:
+            enabled = config.is_module_enabled(module.name)
+
+            if not enabled:
+                state.add_trace(module.name, "Module disabled in config. Status = SKIPPED")
+                state.module_results[module.name] = ModuleResult(
+                    module_name=module.name,
+                    enabled=False,
+                    input_summary={},
+                    output_summary={},
+                    status="SKIPPED",
+                    reason="Module disabled in configuration.",
+                )
+                continue
+
+            # Early Termination Semantics: If upstream rejection occurred, skip sizing/execution modules
+            if has_upstream_rejection and module.module_type in ("sizing", "execution", "reconciliation"):
+                state.add_trace(module.name, f"Skipping {module.name} due to upstream hard rejection.")
+                state.module_results[module.name] = ModuleResult(
+                    module_name=module.name,
+                    enabled=True,
+                    input_summary={},
+                    output_summary={},
+                    status="SKIPPED",
+                    reason="Skipped downstream execution due to upstream module rejection.",
+                )
+                continue
+
             state = module.process(state)
+
+            mod_res = state.module_results.get(module.name)
+            if mod_res and mod_res.status in ("REJECT", "FAIL"):
+                has_upstream_rejection = True
 
         # Build final CapitalManagementResult
         result = CapitalManagementResult(
@@ -139,6 +193,7 @@ class CapitalManagementPipeline:
             warnings=list(state.warnings),
             module_results=dict(state.module_results),
             calculation_trace=list(state.trace_logs),
+            binding_constraints=list(state.binding_constraints),
         )
 
         return result
