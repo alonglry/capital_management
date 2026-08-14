@@ -1,7 +1,5 @@
 # Modular Capital Management Engine for Equity and Forex Trading
 
-A production-grade, modular, pipeline-based capital management engine for Equities and Forex trading.
-
 It determines strategy conviction demand, maximum permissible risk budget, and final position size for a proposed trade candidate while enforcing strict portfolio-level risk limits, correlation constraints, factor exposures, transaction cost adjustments, and stress scenarios.
 
 ---
@@ -15,8 +13,8 @@ Portfolio State + Trade Candidate + Configuration + Market Data + Explicit Instr
                                       ↓
                          CapitalManagementPipeline
                                       ↓
-  [1] Base Risk Budget             (R0 = Equity Snapshot × Base Risk %)
-  [2] Conviction Risk Allocator    (R_requested = R0 × Conviction_Mult × Conflict_Mult)
+  [1] Base Risk Budget            (R0 = Equity Snapshot × Base Risk %)
+  [2] Conviction Risk Allocator   (R_requested = R0 × Conviction_Mult × Conflict_Mult)
   [3] Drawdown Governor           (R1 = R_prev × Drawdown Multiplier)
   [4] Volatility Governor         (R2 = R1 × Volatility Multiplier)
   [5] Strategy Allocation         (R3 = R2 × Strategy Multiplier)
@@ -67,41 +65,41 @@ Position sizing and reconciliation use the single canonical solver `solve_max_ex
 ```text
 capital_management/
 ├── models/
-│   ├── account.py           # AccountState
-│   ├── portfolio.py         # Position & PortfolioState
-│   ├── trade_candidate.py   # TradeCandidate (with validate_stop_direction)
-│   ├── market_data.py       # MarketData (with fx_rates & as_of_timestamp)
-│   ├── config.py            # CapitalManagementConfig & ConvictionRiskConfig
-│   ├── instrument.py        # InstrumentSpec & FX conversion layer
-│   ├── ledger.py            # RiskLedger & RiskCapacityLedger
-│   ├── state.py             # CapitalManagementState & ModuleResult
-│   └── result.py            # CapitalManagementResult & trace models
+│   ├── account.py              # AccountState
+│   ├── portfolio.py            # Position & PortfolioState
+│   ├── trade_candidate.py      # TradeCandidate (with validate_stop_direction)
+│   ├── market_data.py          # MarketData (with fx_rates & as_of_timestamp)
+│   ├── config.py               # CapitalManagementConfig & ConvictionRiskConfig
+│   ├── instrument.py           # InstrumentSpec & FX conversion layer
+│   ├── ledger.py               # RiskLedger & RiskCapacityLedger
+│   ├── state.py                # CapitalManagementState & ModuleResult
+│   └── result.py               # CapitalManagementResult & trace models
 ├── modules/
-│   ├── base_module.py       # BaseRiskModule, RiskTransformer, RiskConstraint
-│   ├── base_risk.py         # Module 1: Base Risk Budget
+│   ├── base_module.py          # BaseRiskModule, RiskTransformer, RiskConstraint
+│   ├── base_risk.py            # Module 1: Base Risk Budget
 │   ├── conviction_allocator.py # Module 2: Dynamic Conviction Risk Allocator
-│   ├── drawdown_governor.py # Module 3: Drawdown Governor
-│   ├── volatility_governor.py # Module 4: Volatility Governor
-│   ├── strategy_allocation.py# Module 5: Strategy Allocation
-│   ├── stop_risk.py        # Module 6: Stop-Loss Risk Calculation
-│   ├── portfolio_heat.py    # Module 7: Portfolio Heat Constraint
-│   ├── correlation_risk.py # Module 8: Correlation-Adjusted Risk Constraint
-│   ├── factor_exposure.py  # Module 9: Factor Exposure Constraint
-│   ├── stress_test.py      # Module 10: Stress Test Capacity Constraint
-│   ├── quantity_solver.py  # Integer step utility & solve_max_executable_quantity solver
-│   ├── position_sizing.py  # Module 11: Position Sizing
-│   ├── transaction_cost.py # Module 12: Transaction Cost Module
-│   ├── risk_reconciliation.py # Module 13: Actual Risk Reconciliation
-│   └── final_validation.py # Module 14: Final Risk Validation Safety Gate
+│   ├── drawdown_governor.py    # Module 3: Drawdown Governor
+│   ├── volatility_governor.py  # Module 4: Volatility Governor
+│   ├── strategy_allocation.py  # Module 5: Strategy Allocation
+│   ├── stop_risk.py            # Module 6: Stop-Loss Risk Calculation
+│   ├── portfolio_heat.py       # Module 7: Portfolio Heat Constraint
+│   ├── correlation_risk.py     # Module 8: Correlation-Adjusted Risk Constraint
+│   ├── factor_exposure.py      # Module 9: Factor Exposure Constraint
+│   ├── stress_test.py          # Module 10: Stress Test Capacity Constraint
+│   ├── quantity_solver.py      # Integer step utility & solve_max_executable_quantity solver
+│   ├── position_sizing.py      # Module 11: Position Sizing
+│   ├── transaction_cost.py     # Module 12: Transaction Cost Module
+│   ├── risk_reconciliation.py  # Module 13: Actual Risk Reconciliation
+│   └── final_validation.py     # Module 14: Final Risk Validation Safety Gate
 ├── pipeline/
 │   └── capital_management_pipeline.py # Pipeline executor with hash & timestamp checks
 ├── tests/
-│   └── test_*.py            # Comprehensive unit and invariant test suite (71 tests)
+│   └── test_*.py               # Comprehensive unit and invariant test suite (71 tests)
 ├── examples/
-│   ├── example_equity.py
-│   ├── example_forex.py
-│   ├── example_multi_fx.py
-│   └── example_multi_equity.py
+│   ├── example_equity.py       # Example with equity
+│   ├── example_forex.py        # Example with forex
+│   ├── example_multi_fx.py     # Example with multiple forex
+│   └── example_multi_equity.py # Example with multiple equity
 └── README.md
 ```
 

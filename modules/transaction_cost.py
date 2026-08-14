@@ -1,5 +1,5 @@
 """
-Module 11 — Transaction Cost Calculation.
+Module 12 — Transaction Cost Calculation.
 """
 
 from typing import Any, Dict, Tuple
@@ -70,21 +70,24 @@ def calculate_transaction_cost(
         raise ValueError(f"Missing required FX conversion rate from commission currency '{comm_currency}' to account currency '{acct_ccy}'")
     comm_fx_rate = conv_res.conversion_rate if conv_res else 1.0
 
-    if comm_type == "fixed":
+    if comm_type in ("fixed", "fixed_order"):
         comm_cost = comm * comm_fx_rate
     elif comm_type == "percentage":
         comm_rate = comm
         if comm_rate < 0 or comm_rate >= 1.0:
             raise ValueError(f"Invalid percentage commission_rate ({comm_rate}). Must be 0 <= rate < 1.0")
-        notional_val = inst.calculate_notional_value(
+        comm_notional = inst.calculate_notional_value(
             quantity=executable_quantity,
             entry_price=entry,
-            account_currency=acct_ccy,
+            target_currency=comm_currency,
             fx_rates=fx_rates,
         )
-        comm_cost = comm_rate * notional_val
-    else:  # 'per_unit'
+        comm_native = comm_rate * comm_notional
+        comm_cost = comm_native * comm_fx_rate
+    elif comm_type in ("per_unit", "per_share", "per_lot"):
         comm_cost = (comm * executable_quantity) * comm_fx_rate
+    else:
+        raise ValueError(f"Unsupported commission_type '{comm_type}'. Supported: 'fixed_order', 'per_unit', 'percentage'.")
 
     # 3. Slippage Cost
     slip_dist = slip

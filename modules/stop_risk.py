@@ -57,9 +57,9 @@ class StopRiskModule(BaseRiskModule):
             )
             return state
 
-        # 2. Validate InstrumentSpec for capital management
+        # 2. Unconditionally validate InstrumentSpec for capital management
         is_valid_spec, msg_spec = inst.validate_for_capital_management(state.account.currency, state.trade)
-        if not is_valid_spec and state.config.require_verified_instrument_metadata == "reject":
+        if not is_valid_spec:
             state.add_rejection(f"Instrument validation failed: {msg_spec}")
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,

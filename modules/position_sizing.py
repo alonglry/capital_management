@@ -60,9 +60,9 @@ class PositionSizingModule(BaseRiskModule):
             )
             return state
 
-        # Validate for capital management explicitly
+        # Unconditionally validate InstrumentSpec metadata for capital management
         is_valid_spec, msg_spec = inst.validate_for_capital_management(state.account.currency, state.trade)
-        if not is_valid_spec and state.config.require_verified_instrument_metadata == "reject":
+        if not is_valid_spec:
             state.raw_position_size = 0.0
             state.rounded_position_size = 0.0
             state.executable_position_size = 0.0
@@ -80,9 +80,23 @@ class PositionSizingModule(BaseRiskModule):
             )
             return state
 
-        qty_inc = inst.quantity_increment or 1.0
-        min_qty = inst.min_quantity or 1.0
-        max_qty = inst.max_quantity or 100000.0
+        qty_inc = inst.quantity_increment
+        min_qty = inst.min_quantity
+        max_qty = inst.max_quantity
+
+        if qty_inc is None or min_qty is None or max_qty is None:
+            state.add_rejection("InstrumentSpec quantity rules (quantity_increment, min_quantity, max_quantity) must not be None.")
+            state.executable_position_size = 0.0
+            state.final_position_size = 0.0
+            state.module_results[self.name] = ModuleResult(
+                module_name=self.name,
+                enabled=True,
+                input_summary=self._get_input_summary(state),
+                output_summary=self._get_output_summary(state),
+                status="REJECT",
+                reason="Missing InstrumentSpec quantity rules.",
+            )
+            return state
 
         if budget <= 0 or risk_per_unit <= 0:
             state.raw_position_size = 0.0
