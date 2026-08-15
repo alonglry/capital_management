@@ -22,6 +22,8 @@ class CapitalManagementResult:
     asset_class: str
 
     base_risk_budget: float
+    risk_capital_base: float
+    risk_capital_source: str
     requested_risk_budget: float
     requested_risk_pct: float
     governed_risk_budget: float
@@ -90,6 +92,8 @@ class CapitalManagementResult:
             "side": self.side,
             "asset_class": self.asset_class,
             "base_risk_budget": self.base_risk_budget,
+            "risk_capital_base": self.risk_capital_base,
+            "risk_capital_source": self.risk_capital_source,
             "requested_risk_budget": self.requested_risk_budget,
             "requested_risk_pct": self.requested_risk_pct,
             "governed_risk_budget": self.governed_risk_budget,

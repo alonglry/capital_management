@@ -21,6 +21,7 @@ class AccountState:
     cash: float
     currency: str = "USD"
     peak_equity: Optional[float] = None
+    is_initialized: bool = True
 
     def get_peak_equity(self) -> float:
         """

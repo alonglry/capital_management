@@ -121,7 +121,6 @@ class CapitalManagementPipeline:
             market_data=market_data,
             config=config,
             instrument=instrument,
-            risk_equity_snapshot=float(account.equity),
         )
 
         input_hash = self._calculate_input_hash(account, trade, config, instrument)
@@ -134,11 +133,6 @@ class CapitalManagementPipeline:
         # CRITICAL SAFETY: If instrument is None, do NOT create unverified fallback metadata automatically
         if instrument is None:
             state.add_rejection("Missing required explicit InstrumentSpec metadata.")
-            has_upstream_rejection = True
-
-        # CRITICAL SAFETY: If equity <= 0, reject immediately
-        if account.equity <= 0:
-            state.add_rejection(f"Account equity ({account.equity}) must be > 0.")
             has_upstream_rejection = True
 
         # Execute each module in sequence
@@ -194,6 +188,8 @@ class CapitalManagementPipeline:
             side=trade.side,
             asset_class=trade.asset_class,
             base_risk_budget=state.base_risk_budget,
+            risk_capital_base=state.risk_capital_base,
+            risk_capital_source=state.risk_capital_source,
             requested_risk_budget=state.requested_risk_budget,
             requested_risk_pct=state.requested_risk_pct,
             governed_risk_budget=state.governed_risk_budget,

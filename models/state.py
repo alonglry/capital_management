@@ -4,6 +4,7 @@ Shared pipeline state and module result data models.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import math
 from typing import Any, Dict, List, Optional
 
 from capital_management.models.account import AccountState
@@ -52,6 +53,8 @@ class CapitalManagementState:
     attempted_risk_ledger: RiskLedger = field(default_factory=RiskLedger)
 
     # Explicit Risk Budget Stages
+    risk_capital_base: float = 0.0
+    risk_capital_source: str = "unavailable"
     base_risk_budget: float = 0.0
     requested_risk_budget: float = 0.0
     requested_risk_pct: float = 0.0
@@ -154,8 +157,10 @@ class CapitalManagementState:
     trace_logs: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        if self.risk_equity_snapshot <= 0 and self.account and self.account.equity > 0:
-            self.risk_equity_snapshot = float(self.account.equity)
+        if self.risk_equity_snapshot <= 0 and self.account:
+            eq = getattr(self.account, "equity", None)
+            if eq is not None and isinstance(eq, (int, float)) and math.isfinite(eq) and eq > 0:
+                self.risk_equity_snapshot = float(eq)
 
     @property
     def correlation_adjusted_stop_risk_pct(self) -> float:
