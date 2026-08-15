@@ -99,6 +99,9 @@ class CapitalManagementState:
     factor_constraint_status: str = "PASS"
 
     # Stop Loss Metrics
+    proposed_stop_price: Optional[float] = None
+    effective_stop_price: Optional[float] = None
+    stop_price_source: Optional[str] = None
     stop_distance: float = 0.0
     stop_distance_pct: float = 0.0
     stop_method: str = "price"

@@ -57,6 +57,9 @@ class CapitalManagementResult:
     transaction_cost: float
     stress_loss: float
 
+    proposed_stop_price: Optional[float] = None
+    stop_price_source: Optional[str] = None
+
     rejection_reasons: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -103,6 +106,8 @@ class CapitalManagementResult:
             "entry_price": self.entry_price,
             "stop_price": self.stop_price,
             "stop_distance": self.stop_distance,
+            "proposed_stop_price": self.proposed_stop_price,
+            "stop_price_source": self.stop_price_source,
             "actual_stop_loss_risk": self.actual_stop_loss_risk,
             "actual_transaction_cost": self.actual_transaction_cost,
             "actual_total_risk": self.actual_total_risk,

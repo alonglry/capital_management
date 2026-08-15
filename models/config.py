@@ -166,7 +166,8 @@ class CapitalManagementConfig:
     max_trade_risk_pct: float = 0.0075
     max_portfolio_heat_pct: float = 0.05
     max_correlation_adjusted_risk_pct: float = 0.04
-    atr_multiplier: float = 1.5
+    default_stop_method: str = "atr"  # 'atr', 'none'
+    default_stop_atr_multiplier: float = 1.5
 
     heat_policy: str = "reduce"  # 'reduce' or 'reject'
     correlation_fallback_policy: str = "reject"  # 'reject', 'repair', 'assume_zero'
@@ -190,6 +191,7 @@ class CapitalManagementConfig:
     conviction_risk: ConvictionRiskConfig = field(default_factory=ConvictionRiskConfig)
 
     def __post_init__(self):
+        import math
         if not (0.0 <= self.base_risk_pct <= 1.0):
             raise ValueError(f"base_risk_pct ({self.base_risk_pct}) must be between 0.0 and 1.0")
         if not (0.0 <= self.max_trade_risk_pct <= 1.0):
@@ -200,6 +202,10 @@ class CapitalManagementConfig:
             raise ValueError(f"max_correlation_adjusted_risk_pct ({self.max_correlation_adjusted_risk_pct}) must be between 0.0 and 1.0")
         if self.slippage_unit.lower() not in ("price", "pips", "percentage"):
             raise ValueError(f"Invalid slippage_unit '{self.slippage_unit}'. Must be 'price', 'pips', or 'percentage'.")
+        if self.default_stop_method.lower() not in ("atr", "none"):
+            raise ValueError(f"Invalid default_stop_method '{self.default_stop_method}'. Must be 'atr' or 'none'.")
+        if not math.isfinite(self.default_stop_atr_multiplier) or self.default_stop_atr_multiplier <= 0:
+            raise ValueError(f"default_stop_atr_multiplier ({self.default_stop_atr_multiplier}) must be positive and finite.")
 
     def is_module_enabled(self, module_name: str) -> bool:
         """

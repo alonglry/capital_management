@@ -44,7 +44,7 @@ class FinalValidationModule(BaseRiskModule):
         equity = state.risk_equity_snapshot
         size = state.final_position_size
         entry = state.trade.entry_price
-        stop = state.trade.proposed_stop_price
+        stop = state.effective_stop_price if state.effective_stop_price is not None else state.trade.proposed_stop_price
         stop_dist = state.stop_distance
         inst = state.instrument
 
@@ -80,7 +80,7 @@ class FinalValidationModule(BaseRiskModule):
             state.add_rejection(f"Account equity snapshot ({equity}) is non-positive or non-finite.")
 
         # 2. Stop direction check
-        valid_dir, msg_dir = state.trade.validate_stop_direction()
+        valid_dir, msg_dir = state.trade.validate_stop_direction(stop_price=stop)
         if not valid_dir:
             state.add_rejection(f"Stop direction validation failed: {msg_dir}")
 

@@ -6,12 +6,14 @@ import math
 from typing import Any, Dict
 
 from capital_management.models.state import CapitalManagementState, ModuleResult
+from capital_management.models.trade_candidate import resolve_effective_stop_price
 from capital_management.modules.base_module import BaseRiskModule
 
 
 class StopRiskModule(BaseRiskModule):
     """
-    Module 9: Calculates stop distance and monetary risk per unit using InstrumentSpec in account currency.
+    Module 9: Calculates stop distance and monetary risk per unit using InstrumentSpec in account currency,
+    resolving effective stop price via resolve_effective_stop_price canonical resolution.
     """
 
     @property
@@ -33,6 +35,9 @@ class StopRiskModule(BaseRiskModule):
 
     def _get_output_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
         return {
+            "proposed_stop_price": state.proposed_stop_price,
+            "effective_stop_price": state.effective_stop_price,
+            "stop_price_source": state.stop_price_source,
             "stop_distance": state.stop_distance,
             "stop_distance_pct": state.stop_distance_pct,
             "monetary_risk_per_unit": state.monetary_risk_per_unit,
@@ -41,7 +46,6 @@ class StopRiskModule(BaseRiskModule):
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
         entry = state.trade.entry_price
-        stop = state.trade.proposed_stop_price
 
         # 1. Require explicit InstrumentSpec
         inst = state.instrument
@@ -71,12 +75,49 @@ class StopRiskModule(BaseRiskModule):
             )
             return state
 
-        # 3. Validate stop direction
-        is_valid_stop_dir, msg_stop_dir = state.trade.validate_stop_direction()
-        if not is_valid_stop_dir:
-            state.add_rejection(msg_stop_dir)
+        # 3. Canonical Stop Resolution
+        try:
+            effective_stop, source, dist = resolve_effective_stop_price(
+                state.trade,
+                atr=state.trade.atr,
+                config=state.config,
+            )
+        except ValueError as err:
+            reason = str(err)
+            state.add_rejection(reason)
+            state.module_results[self.name] = ModuleResult(
+                module_name=self.name,
+                enabled=True,
+                input_summary=self._get_input_summary(state),
+                output_summary=self._get_output_summary(state),
+                status="REJECT",
+                reason=reason,
+            )
+            return state
+
+        dist_pct = dist / entry
+        state.proposed_stop_price = state.trade.proposed_stop_price
+        state.effective_stop_price = effective_stop
+        state.stop_price_source = source
+        state.stop_distance = dist
+        state.stop_distance_pct = dist_pct
+        state.stop_method = source
+
+        pip_val = state.trade.pip_value_per_lot
+        pip_ccy = state.trade.pip_value_currency
+        try:
+            monetary_risk_per_unit = inst.calculate_monetary_risk_per_unit(
+                entry_price=entry,
+                stop_price=effective_stop,
+                pip_value_per_lot=pip_val,
+                pip_value_currency=pip_ccy,
+                account_currency=state.account.currency,
+                fx_rates=state.market_data.fx_rates,
+            )
+        except ValueError as err:
+            state.add_rejection(str(err))
             status = "REJECT"
-            reason = msg_stop_dir
+            reason = str(err)
             state.module_results[self.name] = ModuleResult(
                 module_name=self.name,
                 enabled=True,
@@ -87,58 +128,16 @@ class StopRiskModule(BaseRiskModule):
             )
             return state
 
-        if entry <= 0 or not math.isfinite(entry):
-            state.add_rejection(f"Trade candidate entry_price ({entry}) must be > 0 and finite.")
+        if not math.isfinite(monetary_risk_per_unit) or monetary_risk_per_unit <= 0:
             status = "REJECT"
-            reason = f"Invalid entry_price ({entry})"
+            reason = f"Calculated invalid monetary risk per unit (${monetary_risk_per_unit})"
+            state.add_rejection(reason)
         else:
-            dist = abs(entry - stop)
-            dist_pct = dist / entry
+            state.monetary_risk_per_unit = monetary_risk_per_unit
+            status = "PASS"
+            reason = f"Calculated stop distance = {dist:,.5f} ({dist_pct:.2%}), source = '{source}', monetary risk per unit = ${monetary_risk_per_unit:,.4f} ({state.account.currency})"
 
-            state.stop_distance = dist
-            state.stop_distance_pct = dist_pct
-            state.stop_method = "price"
-
-            if dist <= 0 or not math.isfinite(dist):
-                status = "REJECT"
-                reason = f"Proposed stop price equals or exceeds entry price (stop_distance = {dist})"
-                state.add_rejection(reason)
-            else:
-                pip_val = state.trade.pip_value_per_lot
-                pip_ccy = state.trade.pip_value_currency
-                try:
-                    monetary_risk_per_unit = inst.calculate_monetary_risk_per_unit(
-                        entry_price=entry,
-                        stop_price=stop,
-                        pip_value_per_lot=pip_val,
-                        pip_value_currency=pip_ccy,
-                        account_currency=state.account.currency,
-                        fx_rates=state.market_data.fx_rates,
-                    )
-                except ValueError as err:
-                    state.add_rejection(str(err))
-                    status = "REJECT"
-                    reason = str(err)
-                    state.module_results[self.name] = ModuleResult(
-                        module_name=self.name,
-                        enabled=True,
-                        input_summary=self._get_input_summary(state),
-                        output_summary=self._get_output_summary(state),
-                        status=status,
-                        reason=reason,
-                    )
-                    return state
-
-                if not math.isfinite(monetary_risk_per_unit) or monetary_risk_per_unit <= 0:
-                    status = "REJECT"
-                    reason = f"Calculated invalid monetary risk per unit (${monetary_risk_per_unit})"
-                    state.add_rejection(reason)
-                else:
-                    state.monetary_risk_per_unit = monetary_risk_per_unit
-                    status = "PASS"
-                    reason = f"Calculated stop distance = {dist:,.5f} ({dist_pct:.2%}), monetary risk per unit = ${monetary_risk_per_unit:,.4f} ({state.account.currency})"
-
-        msg = f"Entry = {entry}, Stop = {stop}, Stop Distance = {state.stop_distance:,.5f} ({state.stop_distance_pct:.2%}), Risk/Unit = ${state.monetary_risk_per_unit:,.4f}, Status = {status}"
+        msg = f"Entry = {entry}, Effective Stop = {effective_stop} (Source: {source}), Stop Distance = {state.stop_distance:,.5f} ({state.stop_distance_pct:.2%}), Risk/Unit = ${state.monetary_risk_per_unit:,.4f}, Status = {status}"
         state.add_trace(self.name, msg)
 
         state.module_results[self.name] = ModuleResult(

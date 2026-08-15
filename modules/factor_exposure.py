@@ -43,7 +43,7 @@ class FactorExposureModule(RiskConstraint):
             "factor_constraint_status": state.factor_constraint_status,
         }
 
-    def _extract_factors(self, item: Position | TradeCandidate, equity: float) -> Dict[str, float]:
+    def _extract_factors(self, item: Position | TradeCandidate, equity: float, stop_distance: Optional[float] = None) -> Dict[str, float]:
         factors: Dict[str, float] = {}
 
         if item.currency_exposure:
@@ -62,7 +62,12 @@ class FactorExposureModule(RiskConstraint):
             if isinstance(item, Position):
                 pos_val = item.quantity * item.current_price
             else:
-                stop_dist = abs(item.entry_price - item.proposed_stop_price)
+                if stop_distance is not None and stop_distance > 0:
+                    stop_dist = stop_distance
+                elif item.proposed_stop_price is not None:
+                    stop_dist = abs(item.entry_price - item.proposed_stop_price)
+                else:
+                    stop_dist = 0.0
                 est_shares = (equity * 0.005) / stop_dist if stop_dist > 0 else 0.0
                 pos_val = est_shares * item.entry_price
 
@@ -87,7 +92,7 @@ class FactorExposureModule(RiskConstraint):
             for f, val in pos_factors.items():
                 current_exposures[f] = current_exposures.get(f, 0.0) + val
 
-        cand_factors = self._extract_factors(state.trade, equity)
+        cand_factors = self._extract_factors(state.trade, equity, stop_distance=state.stop_distance)
         projected_exposures = dict(current_exposures)
         for f, val in cand_factors.items():
             projected_exposures[f] = projected_exposures.get(f, 0.0) + val

@@ -82,20 +82,23 @@ class InstrumentSpec:
         """
         ac = asset_class.upper()
         if ac == "FOREX":
-            is_jpy = "JPY" in symbol.upper()
+            clean_symbol = symbol.upper().replace("=X", "").strip()
+            if len(clean_symbol) < 6:
+                raise ValueError(f"Invalid Forex symbol '{symbol}'. Must be at least 6 characters (e.g. 'EURUSD' or 'EURUSD=X').")
+            base_ccy = clean_symbol[:3]
+            quote_ccy = clean_symbol[3:6]
+            is_jpy = "JPY" in clean_symbol
             pip_size = 0.01 if is_jpy else 0.0001
             price_inc = 0.001 if is_jpy else 0.00001
-            base_ccy = symbol[:3].upper() if len(symbol) >= 6 else "EUR"
-            quote_ccy = symbol[3:6].upper() if len(symbol) >= 6 else "USD"
             return cls(
                 symbol=symbol,
                 asset_class="FOREX",
-                contract_size=100000.0,
+                contract_size=100000.0,      #1 standard lot
                 price_increment=price_inc,
                 pip_size=pip_size,
-                quantity_increment=0.01,
-                min_quantity=0.01,
-                max_quantity=100.0,
+                quantity_increment=0.01,     #1 microlot
+                min_quantity=0.01,           #1 microlot
+                max_quantity=100.0,          #100 standard lots
                 point_value=1.0,
                 base_currency=base_ccy,
                 quote_currency=quote_ccy,
@@ -108,13 +111,13 @@ class InstrumentSpec:
             return cls(
                 symbol=symbol,
                 asset_class="EQUITY",
-                contract_size=1.0,
-                price_increment=0.01,
-                pip_size=1.0,
-                quantity_increment=1.0,
-                min_quantity=1.0,
-                max_quantity=100000.0,
-                point_value=1.0,
+                contract_size=1.0,          #1 share
+                price_increment=0.01,       #0.01 dollar per share
+                pip_size=1.0,               #1 dollar per share
+                quantity_increment=1.0,     #1 share
+                min_quantity=1.0,           #1 share
+                max_quantity=100000.0,      #100,000 shares
+                point_value=1.0,            #1 dollar per share
                 base_currency="USD",
                 quote_currency="USD",
                 settlement_currency="USD",

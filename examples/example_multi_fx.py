@@ -2,6 +2,12 @@
 Worked Example — Multi-Pair Forex Portfolio Risk Management.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to sys.path for direct execution
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from capital_management.models import (
     AccountState,
     CapitalManagementConfig,

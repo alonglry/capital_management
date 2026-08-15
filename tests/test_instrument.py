@@ -35,6 +35,17 @@ class TestInstrumentSpec(unittest.TestCase):
         self.assertEqual(inst.pip_size, 0.01)
         self.assertEqual(inst.price_increment, 0.001)
 
+    def test_forex_symbol_with_equals_x(self):
+        inst = InstrumentSpec.create_default("GBPUSD=X", "FOREX")
+        self.assertEqual(inst.base_currency, "GBP")
+        self.assertEqual(inst.quote_currency, "USD")
+
+    def test_forex_symbol_too_short(self):
+        with self.assertRaises(ValueError):
+            InstrumentSpec.create_default("EUR", "FOREX")
+        with self.assertRaises(ValueError):
+            InstrumentSpec.create_default("EURUS=X", "FOREX")
+
 
 if __name__ == "__main__":
     unittest.main()
