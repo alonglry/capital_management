@@ -97,7 +97,28 @@ class ConvictionRiskAllocatorModule(RiskTransformer):
             return max(0.0, min(1.0, raw))
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        equity = state.account.equity
+        risk_capital = state.risk_capital_base
+        if (
+            risk_capital is None
+            or not isinstance(risk_capital, (int, float))
+            or isinstance(risk_capital, bool)
+            or not math.isfinite(risk_capital)
+            or risk_capital <= 0
+        ):
+            state.add_rejection("Risk capital base is unavailable or non-positive.")
+            state.requested_risk_budget = 0.0
+            state.requested_risk_pct = 0.0
+            state.governed_risk_budget = 0.0
+            state.module_results[self.name] = ModuleResult(
+                module_name=self.name,
+                enabled=True,
+                input_summary=self._get_input_summary(state),
+                output_summary=self._get_output_summary(state),
+                status="REJECT",
+                reason="Risk capital base is unavailable or non-positive.",
+            )
+            return state
+
         base_budget = state.base_risk_budget
         cfg = state.config.conviction_risk
 
@@ -138,7 +159,7 @@ class ConvictionRiskAllocatorModule(RiskTransformer):
             conv_mult = cfg.min_multiplier + (cfg.max_multiplier - cfg.min_multiplier) * mapped_str
 
             requested_budget = base_budget * conv_mult * conflict_mult
-            requested_pct = requested_budget / equity if equity > 0 else 0.0
+            requested_pct = requested_budget / risk_capital
         else:
             c_long_val = float(c_long)
             c_short_val = float(c_short)
@@ -152,7 +173,7 @@ class ConvictionRiskAllocatorModule(RiskTransformer):
             conv_mult_val = cfg.min_multiplier + (cfg.max_multiplier - cfg.min_multiplier) * mapped_str_val
 
             requested_budget_val = base_budget * conv_mult_val * conflict_mult_val
-            requested_pct_val = requested_budget_val / equity if equity > 0 else 0.0
+            requested_pct_val = requested_budget_val / risk_capital
 
             c_long = c_long_val
             c_short = c_short_val

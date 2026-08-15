@@ -22,9 +22,9 @@ class DrawdownGovernorModule(RiskTransformer):
         return "drawdown_governor"
 
     def _get_input_summary(self, state: CapitalManagementState) -> Dict[str, Any]:
-        peak = state.account.get_peak_equity()
-        curr = state.account.equity
-        dd = (peak - curr) / peak if peak > 0 else 0.0
+        curr = state.account.equity if state.account.equity is not None else state.risk_equity_snapshot
+        peak = state.account.peak_equity if (state.account.peak_equity is not None and state.account.peak_equity > 0) else curr
+        dd = (peak - curr) / peak if peak is not None and peak > 0 and curr is not None else 0.0
         return {
             "equity": curr,
             "peak_equity": peak,
@@ -39,11 +39,13 @@ class DrawdownGovernorModule(RiskTransformer):
         }
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        peak = state.account.get_peak_equity()
-        curr = state.account.equity
+        curr = state.account.equity if state.account.equity is not None else state.risk_equity_snapshot
+        peak = state.account.peak_equity if (state.account.peak_equity is not None and state.account.peak_equity > 0) else curr
 
-        if peak <= 0 or curr <= 0:
-            state.add_rejection(f"Invalid equity state for drawdown calculation: current=${curr:,.2f}, peak=${peak:,.2f}")
+        if curr is None or peak is None or peak <= 0 or curr <= 0:
+            curr_str = f"${curr:,.2f}" if curr is not None else "None"
+            peak_str = f"${peak:,.2f}" if peak is not None else "None"
+            state.add_rejection(f"Invalid equity state for drawdown calculation: current={curr_str}, peak={peak_str}")
             state.drawdown_multiplier = 0.0
             state.governed_risk_budget = 0.0
             state.module_results[self.name] = ModuleResult(
@@ -52,7 +54,7 @@ class DrawdownGovernorModule(RiskTransformer):
                 input_summary=self._get_input_summary(state),
                 output_summary=self._get_output_summary(state),
                 status="REJECT",
-                reason=f"Invalid non-positive equity state (curr=${curr:,.2f}, peak=${peak:,.2f})",
+                reason=f"Invalid non-positive equity state (curr={curr_str}, peak={peak_str})",
             )
             return state
 

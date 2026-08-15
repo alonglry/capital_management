@@ -54,6 +54,7 @@ class TestConvictionRiskAllocatorModule(unittest.TestCase):
             trade=trade,
             market_data=MarketData(),
             config=config,
+            risk_capital_base=self.account.equity,
             base_risk_budget=base_budget,
             governed_risk_budget=base_budget,
             permitted_risk_budget=base_budget,
@@ -206,6 +207,112 @@ class TestConvictionRiskAllocatorModule(unittest.TestCase):
         self.assertAlmostEqual(updated.conviction_multiplier, 0.86, places=4)
         self.assertAlmostEqual(updated.requested_risk_budget, 430.0, places=2)
 
+    def test_17_bootstrap_equity_pipeline_integration(self):
+        """
+        Verify account.equity=None with cash=100000 and base_risk_pct=0.01
+        resolves risk_capital_base=100000, base_budget=1000, and ConvictionAllocator
+        correctly computes requested_risk_pct = requested_budget / 100000 without TypeError.
+        """
+        account = AccountState(equity=None, cash=100000.0)  # type: ignore
+        state = CapitalManagementState(
+            account=account,
+            portfolio=[],
+            trade=TradeCandidate(
+                symbol="AAPL",
+                asset_class="equity",
+                side="long",
+                entry_price=150.0,
+                proposed_stop_price=145.0,
+                strategy_id="trend",
+                slope_long=1.0,
+                threshold_long=1.0,
+                slope_short=0.0,
+                threshold_short=1.0,
+            ),
+            market_data=MarketData(),
+            config=CapitalManagementConfig(base_risk_pct=0.01),
+            risk_capital_base=100000.0,
+            risk_capital_source="cash_bootstrap",
+            base_risk_budget=1000.0,
+            governed_risk_budget=1000.0,
+            permitted_risk_budget=1000.0,
+        )
+        updated = self.module.process(state)
+        self.assertEqual(updated.module_results["conviction_allocator"].status, "PASS")
+        self.assertEqual(account.equity, None)  # Never mutated
+        self.assertEqual(updated.risk_capital_base, 100000.0)
+        # At slope_long=1.0, threshold=1.0, net_c=0, conv_mult=0.5 -> requested = 500, pct = 500/100000 = 0.005
+        self.assertEqual(updated.requested_risk_budget, 500.0)
+        self.assertAlmostEqual(updated.requested_risk_pct, 0.005, places=5)
+
+    def test_18_existing_equity_preferred_over_cash(self):
+        """
+        Verify account.equity=120000, cash=100000 uses risk_capital_base=120000.
+        """
+        account = AccountState(equity=120000.0, cash=100000.0)
+        state = CapitalManagementState(
+            account=account,
+            portfolio=[],
+            trade=TradeCandidate(
+                symbol="AAPL",
+                asset_class="equity",
+                side="long",
+                entry_price=150.0,
+                proposed_stop_price=145.0,
+                strategy_id="trend",
+                slope_long=1.5,
+                threshold_long=1.0,
+                slope_short=0.0,
+                threshold_short=1.0,
+            ),
+            market_data=MarketData(),
+            config=CapitalManagementConfig(base_risk_pct=0.01),
+            risk_capital_base=120000.0,
+            risk_capital_source="equity",
+            base_risk_budget=1200.0,
+            governed_risk_budget=1200.0,
+            permitted_risk_budget=1200.0,
+        )
+        updated = self.module.process(state)
+        self.assertEqual(updated.module_results["conviction_allocator"].status, "PASS")
+        # conv_mult=1.5 -> requested = 1200 * 1.5 = 1800.0. requested_pct = 1800 / 120000 = 0.015 (1.5%)
+        self.assertEqual(updated.requested_risk_budget, 1800.0)
+        self.assertAlmostEqual(updated.requested_risk_pct, 0.015, places=5)
+
+    def test_19_invalid_risk_capital_base_rejects(self):
+        """
+        Verify invalid risk_capital_base (None, 0, negative, NaN, Inf) causes immediate REJECT.
+        """
+        invalid_values = [None, 0.0, -100.0, float("nan"), float("inf")]
+        for val in invalid_values:
+            with self.subTest(risk_capital_base=val):
+                state = CapitalManagementState(
+                    account=self.account,
+                    portfolio=[],
+                    trade=TradeCandidate(
+                        symbol="AAPL",
+                        asset_class="equity",
+                        side="long",
+                        entry_price=150.0,
+                        proposed_stop_price=145.0,
+                        strategy_id="trend",
+                        slope_long=1.3,
+                        threshold_long=1.0,
+                        slope_short=0.0,
+                        threshold_short=1.0,
+                    ),
+                    market_data=MarketData(),
+                    config=self.config,
+                    risk_capital_base=val,  # type: ignore
+                    base_risk_budget=500.0,
+                )
+                updated = self.module.process(state)
+                self.assertEqual(updated.module_results["conviction_allocator"].status, "REJECT")
+                self.assertTrue(any("Risk capital base" in r for r in updated.rejection_reasons))
+                self.assertEqual(updated.requested_risk_budget, 0.0)
+                self.assertEqual(updated.requested_risk_pct, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
+

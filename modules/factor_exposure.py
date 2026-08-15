@@ -84,7 +84,22 @@ class FactorExposureModule(RiskConstraint):
         return factors
 
     def _execute(self, state: CapitalManagementState) -> CapitalManagementState:
-        equity = state.account.equity
+        equity = state.risk_equity_snapshot
+        if equity <= 0:
+            state.factor_risk_capacity = 0.0
+            state.permitted_risk_budget = 0.0
+            state.factor_constraint_status = "REJECT"
+            state.add_rejection("Account equity is non-positive for factor exposure calculation.")
+            state.module_results[self.name] = ModuleResult(
+                module_name=self.name,
+                enabled=True,
+                input_summary=self._get_input_summary(state),
+                output_summary=self._get_output_summary(state),
+                status="REJECT",
+                reason="Account equity is non-positive",
+            )
+            return state
+
         current_exposures: Dict[str, float] = {}
 
         for pos in state.portfolio:
