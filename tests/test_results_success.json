@@ -1,0 +1,4197 @@
+[
+  {
+    "test_id": "EQ_01",
+    "category": "equity_single",
+    "description": "Standard Equity Long AAPL, clean account, baseline risk 1%",
+    "conditions": {
+      "test_id": "EQ_01",
+      "category": "equity_single",
+      "description": "Standard Equity Long AAPL, clean account, baseline risk 1%",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "momentum",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 1500.0,
+      "governed_risk_budget": 1125.0,
+      "permitted_risk_budget": 1125.0,
+      "raw_position_size": 112.5,
+      "executable_position_size": 112.0,
+      "actual_stop_loss_risk": 1120.0,
+      "actual_total_risk": 1120.0,
+      "rejection_reasons": [],
+      "warnings": [],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_02",
+    "category": "equity_single",
+    "description": "Standard Equity Short MSFT, clean account, high conviction",
+    "conditions": {
+      "test_id": "EQ_02",
+      "category": "equity_single",
+      "description": "Standard Equity Short MSFT, clean account, high conviction",
+      "account": {
+        "equity": 250000.0,
+        "cash": 200000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "MSFT",
+        "asset_class": "equity",
+        "side": "short",
+        "entry_price": "400.0",
+        "proposed_stop_price": "420.0",
+        "strategy_id": "breakout",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "MSFT",
+      "side": "short",
+      "asset_class": "equity",
+      "base_risk_budget": 3750.0,
+      "requested_risk_budget": 5625.0,
+      "governed_risk_budget": 2109.375,
+      "permitted_risk_budget": 2109.375,
+      "raw_position_size": 105.46875,
+      "executable_position_size": 105.0,
+      "actual_stop_loss_risk": 2100.0,
+      "actual_total_risk": 2100.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'MSFT'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_03",
+    "category": "equity_portfolio",
+    "description": "Equity Long NVDA with existing AAPL and MSFT tech positions (sector cap test)",
+    "conditions": {
+      "test_id": "EQ_03",
+      "category": "equity_portfolio",
+      "description": "Equity Long NVDA with existing AAPL and MSFT tech positions (sector cap test)",
+      "account": {
+        "equity": 500000.0,
+        "cash": 300000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "NVDA",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "120.0",
+        "proposed_stop_price": "110.0",
+        "strategy_id": "momentum",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "NVDA",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "NVDA",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 5000.0,
+      "requested_risk_budget": 2500.0,
+      "governed_risk_budget": 937.5,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Technology factor exposure (+0.46) exceeds limit (0.25)",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Upstream hard rejection in module 'factor_check': Technology factor exposure (+0.46) exceeds limit (0.25)",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'NVDA'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_04",
+    "category": "equity_single",
+    "description": "Equity GOOG in 12% Drawdown from peak (should reduce risk budget by 50%)",
+    "conditions": {
+      "test_id": "EQ_04",
+      "category": "equity_single",
+      "description": "Equity GOOG in 12% Drawdown from peak (should reduce risk budget by 50%)",
+      "account": {
+        "equity": 88000.0,
+        "cash": 70000.0,
+        "currency": "USD",
+        "peak_equity": 100000.0
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "GOOG",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "175.0",
+        "proposed_stop_price": "168.0",
+        "strategy_id": "mean_reversion",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "GOOG",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "GOOG",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 880.0,
+      "requested_risk_budget": 440.0,
+      "governed_risk_budget": 110.0,
+      "permitted_risk_budget": 110.0,
+      "raw_position_size": 15.714285714285714,
+      "executable_position_size": 15.0,
+      "actual_stop_loss_risk": 105.0,
+      "actual_total_risk": 105.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'GOOG'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_05",
+    "category": "equity_single",
+    "description": "Equity AMZN in 25% Drawdown (exceeds 20% max DD rule -> 0 multiplier)",
+    "conditions": {
+      "test_id": "EQ_05",
+      "category": "equity_single",
+      "description": "Equity AMZN in 25% Drawdown (exceeds 20% max DD rule -> 0 multiplier)",
+      "account": {
+        "equity": 75000.0,
+        "cash": 60000.0,
+        "currency": "USD",
+        "peak_equity": 100000.0
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AMZN",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "180.0",
+        "proposed_stop_price": "170.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AMZN",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AMZN",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 750.0,
+      "requested_risk_budget": 375.0,
+      "governed_risk_budget": 0.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Cannot calculate position size with permitted_risk_budget=$0.00 or risk_per_unit=$10.0000",
+        "Upstream hard rejection in module 'position_sizing': Cannot calculate position size with permitted_risk_budget=$0.00 or risk_per_unit=$10.0000",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AMZN'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_06",
+    "category": "equity_single",
+    "description": "Equity TSLA with ATR Ratio = 2.0 (High volatility regime -> 0.50 multiplier)",
+    "conditions": {
+      "test_id": "EQ_06",
+      "category": "equity_single",
+      "description": "Equity TSLA with ATR Ratio = 2.0 (High volatility regime -> 0.50 multiplier)",
+      "account": {
+        "equity": 200000.0,
+        "cash": 150000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "TSLA",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "220.0",
+        "proposed_stop_price": "200.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "TSLA",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "TSLA",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 500.0,
+      "raw_position_size": 25.0,
+      "executable_position_size": 25.0,
+      "actual_stop_loss_risk": 500.0,
+      "actual_total_risk": 500.0,
+      "rejection_reasons": [],
+      "warnings": [],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_07",
+    "category": "equity_single",
+    "description": "Equity JNJ with ATR Ratio = 0.50 (Compressed volatility -> 0.75 multiplier)",
+    "conditions": {
+      "test_id": "EQ_07",
+      "category": "equity_single",
+      "description": "Equity JNJ with ATR Ratio = 0.50 (Compressed volatility -> 0.75 multiplier)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 90000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "JNJ",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "160.0",
+        "proposed_stop_price": "155.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "JNJ",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "JNJ",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 375.0,
+      "permitted_risk_budget": 375.0,
+      "raw_position_size": 75.0,
+      "executable_position_size": 75.0,
+      "actual_stop_loss_risk": 375.0,
+      "actual_total_risk": 375.0,
+      "rejection_reasons": [],
+      "warnings": [],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_08",
+    "category": "equity_portfolio",
+    "description": "Equity portfolio existing heat already 5% of equity (equal to max heat)",
+    "conditions": {
+      "test_id": "EQ_08",
+      "category": "equity_portfolio",
+      "description": "Equity portfolio existing heat already 5% of equity (equal to max heat)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "QQQ",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "450.0",
+        "proposed_stop_price": "440.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "QQQ",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "QQQ",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Current portfolio heat (5.00%) meets or exceeds maximum limit (5.00%)",
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'portfolio_heat': Current portfolio heat (5.00%) meets or exceeds maximum limit (5.00%)",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'QQQ'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "portfolio_heat",
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_09",
+    "category": "equity_single",
+    "description": "Equity with explicit transaction costs in trade candidate",
+    "conditions": {
+      "test_id": "EQ_09",
+      "category": "equity_single",
+      "description": "Equity with explicit transaction costs in trade candidate",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "META",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "500.0",
+        "proposed_stop_price": "480.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "META",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "META",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 12.5,
+      "executable_position_size": 4.0,
+      "actual_stop_loss_risk": 80.0,
+      "actual_total_risk": 200.4,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'META'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_10",
+    "category": "equity_single",
+    "description": "Equity Trade Candidate missing proposed_stop_price, auto-resolved via ATR",
+    "conditions": {
+      "test_id": "EQ_10",
+      "category": "equity_single",
+      "description": "Equity Trade Candidate missing proposed_stop_price, auto-resolved via ATR",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "NFLX",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "600.0",
+        "proposed_stop_price": "None",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "NFLX",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "NFLX",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 11.11111111111111,
+      "executable_position_size": 11.0,
+      "actual_stop_loss_risk": 247.5,
+      "actual_total_risk": 247.5,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'NFLX'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_11",
+    "category": "equity_portfolio",
+    "description": "Equity AMD with existing NVDA position and 0.90 correlation matrix",
+    "conditions": {
+      "test_id": "EQ_11",
+      "category": "equity_portfolio",
+      "description": "Equity AMD with existing NVDA position and 0.90 correlation matrix",
+      "account": {
+        "equity": 200000.0,
+        "cash": 150000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "AMD",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AMD",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AMD",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 500.0,
+      "raw_position_size": 50.0,
+      "executable_position_size": 50.0,
+      "actual_stop_loss_risk": 500.0,
+      "actual_total_risk": 500.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'AMD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_12",
+    "category": "equity_single",
+    "description": "Equity CRM with stress test policy 'reduce' under gap risk scenario",
+    "conditions": {
+      "test_id": "EQ_12",
+      "category": "equity_single",
+      "description": "Equity CRM with stress test policy 'reduce' under gap risk scenario",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "CRM",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "250.0",
+        "proposed_stop_price": "240.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "CRM",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "CRM",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 25.0,
+      "executable_position_size": 25.0,
+      "actual_stop_loss_risk": 250.0,
+      "actual_total_risk": 250.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'CRM'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_13",
+    "category": "equity_single",
+    "description": "Equity integer share rounding verification (quantity_increment=1.0)",
+    "conditions": {
+      "test_id": "EQ_13",
+      "category": "equity_single",
+      "description": "Equity integer share rounding verification (quantity_increment=1.0)",
+      "account": {
+        "equity": 33333.33,
+        "cash": 33333.33,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "IBM",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "190.0",
+        "proposed_stop_price": "183.33",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "IBM",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "IBM",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 333.3333,
+      "requested_risk_budget": 166.66665,
+      "governed_risk_budget": 83.333325,
+      "permitted_risk_budget": 83.333325,
+      "raw_position_size": 12.493751874062992,
+      "executable_position_size": 12.0,
+      "actual_stop_loss_risk": 80.03999999999985,
+      "actual_total_risk": 80.03999999999985,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'IBM'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_14",
+    "category": "equity_single",
+    "description": "Equity BRK.A high share price where 1% risk of small account cannot afford 1 share",
+    "conditions": {
+      "test_id": "EQ_14",
+      "category": "equity_single",
+      "description": "Equity BRK.A high share price where 1% risk of small account cannot afford 1 share",
+      "account": {
+        "equity": 5000.0,
+        "cash": 5000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "BRK.A",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "600000.0",
+        "proposed_stop_price": "580000.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "BRK.A",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "BRK.A",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 50.0,
+      "requested_risk_budget": 25.0,
+      "governed_risk_budget": 12.5,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Stress loss ($0.00) exceeds maximum stress limit ($100.00)",
+        "Upstream hard rejection in module 'stress_test': Stress loss ($0.00) exceeds maximum stress limit ($100.00)",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'BRK.A'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_15",
+    "category": "equity_portfolio",
+    "description": "Equity Portfolio with momentum, breakout, mean_reversion strategies running concurrently",
+    "conditions": {
+      "test_id": "EQ_15",
+      "category": "equity_portfolio",
+      "description": "Equity Portfolio with momentum, breakout, mean_reversion strategies running concurrently",
+      "account": {
+        "equity": 300000.0,
+        "cash": 200000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "COST",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "800.0",
+        "proposed_stop_price": "780.0",
+        "strategy_id": "mean_reversion",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "COST",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "COST",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 3000.0,
+      "requested_risk_budget": 1500.0,
+      "governed_risk_budget": 750.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'COST'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_16",
+    "category": "equity_single",
+    "description": "Equity BA with power gamma conviction mapping (gamma=2.0)",
+    "conditions": {
+      "test_id": "EQ_16",
+      "category": "equity_single",
+      "description": "Equity BA with power gamma conviction mapping (gamma=2.0)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "BA",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "180.0",
+        "proposed_stop_price": "170.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "BA",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "BA",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 1500.0,
+      "governed_risk_budget": 750.0,
+      "permitted_risk_budget": 750.0,
+      "raw_position_size": 75.0,
+      "executable_position_size": 75.0,
+      "actual_stop_loss_risk": 750.0,
+      "actual_total_risk": 750.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'BA'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_17",
+    "category": "equity_portfolio",
+    "description": "Equity portfolio with existing short positions proposing a new short position",
+    "conditions": {
+      "test_id": "EQ_17",
+      "category": "equity_portfolio",
+      "description": "Equity portfolio with existing short positions proposing a new short position",
+      "account": {
+        "equity": 150000.0,
+        "cash": 120000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "AMD",
+        "asset_class": "equity",
+        "side": "short",
+        "entry_price": "150.0",
+        "proposed_stop_price": "160.0",
+        "strategy_id": "short_strat",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AMD",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AMD",
+      "side": "short",
+      "asset_class": "equity",
+      "base_risk_budget": 1500.0,
+      "requested_risk_budget": 750.0,
+      "governed_risk_budget": 375.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AMD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EQ_18",
+    "category": "equity_single",
+    "description": "Equity trade capped by max_trade_risk_pct = 0.0075 even when conviction requests 0.015",
+    "conditions": {
+      "test_id": "EQ_18",
+      "category": "equity_single",
+      "description": "Equity trade capped by max_trade_risk_pct = 0.0075 even when conviction requests 0.015",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "HD",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "350.0",
+        "proposed_stop_price": "335.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "HD",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "HD",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 2000.0,
+      "governed_risk_budget": 1000.0,
+      "permitted_risk_budget": 1000.0,
+      "raw_position_size": 66.66666666666667,
+      "executable_position_size": 66.0,
+      "actual_stop_loss_risk": 990.0,
+      "actual_total_risk": 990.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'HD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_01",
+    "category": "forex_single",
+    "description": "Forex EURUSD Long, standard 10 USD/pip pip_value_per_lot",
+    "conditions": {
+      "test_id": "FX_01",
+      "category": "forex_single",
+      "description": "Forex EURUSD Long, standard 10 USD/pip pip_value_per_lot",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.081",
+        "strategy_id": "fx_trend",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": false,
+        "metadata_source": "legacy_default"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 125.0,
+      "raw_position_size": 0.3124999999999997,
+      "executable_position_size": 0.3,
+      "actual_stop_loss_risk": 120.0000000000001,
+      "actual_total_risk": 124.0500000000001,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_02",
+    "category": "forex_single",
+    "description": "Forex USDJPY Long, JPY quote currency requiring USDJPY conversion rate for pip value",
+    "conditions": {
+      "test_id": "FX_02",
+      "category": "forex_single",
+      "description": "Forex USDJPY Long, JPY quote currency requiring USDJPY conversion rate for pip value",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "USDJPY",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "155.5",
+        "proposed_stop_price": "154.5",
+        "strategy_id": "fx_carry",
+        "pip_value_per_lot": 6.43
+      },
+      "instrument": {
+        "symbol": "USDJPY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "USDJPY",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 0.38880248833592534,
+      "executable_position_size": 0.38,
+      "actual_stop_loss_risk": 244.34,
+      "actual_total_risk": 244.34,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'USDJPY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_03",
+    "category": "forex_single",
+    "description": "Forex GBPUSD Short, 40 pips stop loss",
+    "conditions": {
+      "test_id": "FX_03",
+      "category": "forex_single",
+      "description": "Forex GBPUSD Short, 40 pips stop loss",
+      "account": {
+        "equity": 75000.0,
+        "cash": 75000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "GBPUSD",
+        "asset_class": "forex",
+        "side": "short",
+        "entry_price": "1.27",
+        "proposed_stop_price": "1.274",
+        "strategy_id": "momentum",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "GBPUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "GBPUSD",
+      "side": "short",
+      "asset_class": "forex",
+      "base_risk_budget": 750.0,
+      "requested_risk_budget": 375.0,
+      "governed_risk_budget": 140.625,
+      "permitted_risk_budget": 140.625,
+      "raw_position_size": 0.3515624999999997,
+      "executable_position_size": 0.35,
+      "actual_stop_loss_risk": 140.0000000000001,
+      "actual_total_risk": 140.0000000000001,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'GBPUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_04",
+    "category": "forex_single",
+    "description": "Forex EURGBP Cross with GBP Account Currency (Quote = Account)",
+    "conditions": {
+      "test_id": "FX_04",
+      "category": "forex_single",
+      "description": "Forex EURGBP Cross with GBP Account Currency (Quote = Account)",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "GBP",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURGBP",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "0.855",
+        "proposed_stop_price": "0.852",
+        "strategy_id": "mean_reversion",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURGBP",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURGBP",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 125.0,
+      "raw_position_size": 0.41666666666666635,
+      "executable_position_size": 0.41,
+      "actual_stop_loss_risk": 123.00000000000009,
+      "actual_total_risk": 123.00000000000009,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURGBP'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_05",
+    "category": "forex_portfolio",
+    "description": "Forex portfolio with EURUSD and GBPUSD open positions, adding AUDUSD (USD exposure check)",
+    "conditions": {
+      "test_id": "FX_05",
+      "category": "forex_portfolio",
+      "description": "Forex portfolio with EURUSD and GBPUSD open positions, adding AUDUSD (USD exposure check)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "AUDUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "0.66",
+        "proposed_stop_price": "0.656",
+        "strategy_id": "fx_trend",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "AUDUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AUDUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "USD factor exposure (-3.50) exceeds limit (2.50)",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Upstream hard rejection in module 'factor_check': USD factor exposure (-3.50) exceeds limit (2.50)",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AUDUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_06",
+    "category": "forex_single",
+    "description": "Forex USDCHF with no proposed stop, resolving stop from ATR (0.0040 = 40 pips)",
+    "conditions": {
+      "test_id": "FX_06",
+      "category": "forex_single",
+      "description": "Forex USDCHF with no proposed stop, resolving stop from ATR (0.0040 = 40 pips)",
+      "account": {
+        "equity": 60000.0,
+        "cash": 60000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "USDCHF",
+        "asset_class": "forex",
+        "side": "short",
+        "entry_price": "0.9",
+        "proposed_stop_price": "None",
+        "strategy_id": "default",
+        "pip_value_per_lot": 11.11
+      },
+      "instrument": {
+        "symbol": "USDCHF",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "USDCHF",
+      "side": "short",
+      "asset_class": "forex",
+      "base_risk_budget": 600.0,
+      "requested_risk_budget": 300.0,
+      "governed_risk_budget": 150.0,
+      "permitted_risk_budget": 150.0,
+      "raw_position_size": 0.22502250225022485,
+      "executable_position_size": 0.22,
+      "actual_stop_loss_risk": 146.6520000000001,
+      "actual_total_risk": 146.6520000000001,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'USDCHF'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_07",
+    "category": "forex_single",
+    "description": "Forex microlot floor calculation (e.g. 0.375 lots rounded down to 0.37 lots)",
+    "conditions": {
+      "test_id": "FX_07",
+      "category": "forex_single",
+      "description": "Forex microlot floor calculation (e.g. 0.375 lots rounded down to 0.37 lots)",
+      "account": {
+        "equity": 15000.0,
+        "cash": 15000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.081",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 150.0,
+      "requested_risk_budget": 75.0,
+      "governed_risk_budget": 37.5,
+      "permitted_risk_budget": 37.5,
+      "raw_position_size": 0.09374999999999992,
+      "executable_position_size": 0.09,
+      "actual_stop_loss_risk": 36.00000000000003,
+      "actual_total_risk": 36.00000000000003,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_08",
+    "category": "forex_single",
+    "description": "Forex large institutional account hitting InstrumentSpec max_quantity limit (10.0 lots)",
+    "conditions": {
+      "test_id": "FX_08",
+      "category": "forex_single",
+      "description": "Forex large institutional account hitting InstrumentSpec max_quantity limit (10.0 lots)",
+      "account": {
+        "equity": 5000000.0,
+        "cash": 5000000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.084",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 50000.0,
+      "requested_risk_budget": 25000.0,
+      "governed_risk_budget": 12500.0,
+      "permitted_risk_budget": 999.9999999998898,
+      "raw_position_size": 10.0,
+      "executable_position_size": 10.0,
+      "actual_stop_loss_risk": 999.9999999998898,
+      "actual_total_risk": 999.9999999998898,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50",
+        "Stress capacity ($1,000.00) constrained permitted risk from $12,500.00 to $1,000.00"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_09",
+    "category": "forex_portfolio",
+    "description": "Forex EURUSD with existing GBPUSD long and correlation 0.85",
+    "conditions": {
+      "test_id": "FX_09",
+      "category": "forex_portfolio",
+      "description": "Forex EURUSD with existing GBPUSD long and correlation 0.85",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "USD factor exposure (-3.00) exceeds limit (2.00)",
+        "Upstream hard rejection in module 'factor_check': USD factor exposure (-3.00) exceeds limit (2.00)",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_10",
+    "category": "forex_single",
+    "description": "Forex NZDUSD with strong positive slope/conviction multiplier = 1.5x",
+    "conditions": {
+      "test_id": "FX_10",
+      "category": "forex_single",
+      "description": "Forex NZDUSD with strong positive slope/conviction multiplier = 1.5x",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "NZDUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "0.6",
+        "proposed_stop_price": "0.596",
+        "strategy_id": "momentum",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "NZDUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "NZDUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 750.0,
+      "governed_risk_budget": 281.25,
+      "permitted_risk_budget": 281.25,
+      "raw_position_size": 0.7031249999999994,
+      "executable_position_size": 0.7,
+      "actual_stop_loss_risk": 280.0000000000002,
+      "actual_total_risk": 280.0000000000002,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'NZDUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_11",
+    "category": "forex_single",
+    "description": "Forex USDCAD with conflicting long and short signals triggering conflict penalty",
+    "conditions": {
+      "test_id": "FX_11",
+      "category": "forex_single",
+      "description": "Forex USDCAD with conflicting long and short signals triggering conflict penalty",
+      "account": {
+        "equity": 80000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "USDCAD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.36",
+        "proposed_stop_price": "1.355",
+        "strategy_id": "default",
+        "pip_value_per_lot": 7.35
+      },
+      "instrument": {
+        "symbol": "USDCAD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "USDCAD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 800.0,
+      "requested_risk_budget": 200.0,
+      "governed_risk_budget": 100.0,
+      "permitted_risk_budget": 100.0,
+      "raw_position_size": 0.2721088435374087,
+      "executable_position_size": 0.27,
+      "actual_stop_loss_risk": 99.2250000000023,
+      "actual_total_risk": 99.2250000000023,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'USDCAD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_12",
+    "category": "forex_single",
+    "description": "Forex EURJPY with stress testing (5 pips gap and slippage in risk calculation)",
+    "conditions": {
+      "test_id": "FX_12",
+      "category": "forex_single",
+      "description": "Forex EURJPY with stress testing (5 pips gap and slippage in risk calculation)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURJPY",
+        "asset_class": "forex",
+        "side": "short",
+        "entry_price": "168.0",
+        "proposed_stop_price": "169.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": 6.43
+      },
+      "instrument": {
+        "symbol": "EURJPY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURJPY",
+      "side": "short",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 0.38880248833592534,
+      "executable_position_size": 0.38,
+      "actual_stop_loss_risk": 244.34,
+      "actual_total_risk": 244.34,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURJPY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_13",
+    "category": "forex_single",
+    "description": "Forex trade with high fixed lot commission ($7/lot) and 3 pip spread",
+    "conditions": {
+      "test_id": "FX_13",
+      "category": "forex_single",
+      "description": "Forex trade with high fixed lot commission ($7/lot) and 3 pip spread",
+      "account": {
+        "equity": 20000.0,
+        "cash": 20000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.082",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 200.0,
+      "requested_risk_budget": 100.0,
+      "governed_risk_budget": 50.0,
+      "permitted_risk_budget": 50.0,
+      "raw_position_size": 0.1666666666666727,
+      "executable_position_size": 0.14,
+      "actual_stop_loss_risk": 41.99999999999849,
+      "actual_total_risk": 47.179999999998486,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_14",
+    "category": "forex_portfolio",
+    "description": "Forex portfolio with 4 open currency positions approaching heat ceiling",
+    "conditions": {
+      "test_id": "FX_14",
+      "category": "forex_portfolio",
+      "description": "Forex portfolio with 4 open currency positions approaching heat ceiling",
+      "account": {
+        "equity": 200000.0,
+        "cash": 180000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 4,
+      "trade": {
+        "symbol": "USDCAD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.36",
+        "proposed_stop_price": "1.355",
+        "strategy_id": "default",
+        "pip_value_per_lot": 7.35
+      },
+      "instrument": {
+        "symbol": "USDCAD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "USDCAD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'USDCAD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_15",
+    "category": "forex_single",
+    "description": "Forex carry strategy with strategy allocation multiplier = 0.50",
+    "conditions": {
+      "test_id": "FX_15",
+      "category": "forex_single",
+      "description": "Forex carry strategy with strategy allocation multiplier = 0.50",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "USDMXN",
+        "asset_class": "forex",
+        "side": "short",
+        "entry_price": "17.5",
+        "proposed_stop_price": "17.8",
+        "strategy_id": "carry",
+        "pip_value_per_lot": 5.71
+      },
+      "instrument": {
+        "symbol": "USDMXN",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "USDMXN",
+      "side": "short",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 125.0,
+      "raw_position_size": 0.00729713952130763,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Total risk at minimum broker quantity (0.01) exceeds permitted risk budget ($125.00)",
+        "Upstream hard rejection in module 'position_sizing': Total risk at minimum broker quantity (0.01) exceeds permitted risk budget ($125.00)",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'USDMXN'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_16",
+    "category": "forex_single",
+    "description": "Forex AUDNZD cross with market data NZDUSD FX rate for conversion",
+    "conditions": {
+      "test_id": "FX_16",
+      "category": "forex_single",
+      "description": "Forex AUDNZD cross with market data NZDUSD FX rate for conversion",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AUDNZD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.1",
+        "proposed_stop_price": "1.095",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "AUDNZD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AUDNZD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 0.833333333333314,
+      "executable_position_size": 0.83,
+      "actual_stop_loss_risk": 249.00000000000574,
+      "actual_total_risk": 249.00000000000574,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'AUDNZD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_17",
+    "category": "forex_single",
+    "description": "Forex EURUSD Scalping with 5 pips tight stop loss",
+    "conditions": {
+      "test_id": "FX_17",
+      "category": "forex_single",
+      "description": "Forex EURUSD Scalping with 5 pips tight stop loss",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.0845",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 30.49999999999664,
+      "raw_position_size": 0.61,
+      "executable_position_size": 0.61,
+      "actual_stop_loss_risk": 30.49999999999664,
+      "actual_total_risk": 30.49999999999664,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50",
+        "Stress capacity ($30.50) constrained permitted risk from $125.00 to $30.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "FX_18",
+    "category": "forex_single",
+    "description": "Forex GBPJPY Swing trade with 200 pips wide stop loss",
+    "conditions": {
+      "test_id": "FX_18",
+      "category": "forex_single",
+      "description": "Forex GBPJPY Swing trade with 200 pips wide stop loss",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "GBPJPY",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "195.0",
+        "proposed_stop_price": "193.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": 6.45
+      },
+      "instrument": {
+        "symbol": "GBPJPY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "GBPJPY",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 0.1937984496124031,
+      "executable_position_size": 0.19,
+      "actual_stop_loss_risk": 245.1,
+      "actual_total_risk": 245.1,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'GBPJPY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_01",
+    "category": "mix_portfolio",
+    "description": "Mixed Portfolio: Holding Equity positions AAPL & TSLA, proposing Forex EURUSD trade",
+    "conditions": {
+      "test_id": "MIX_01",
+      "category": "mix_portfolio",
+      "description": "Mixed Portfolio: Holding Equity positions AAPL & TSLA, proposing Forex EURUSD trade",
+      "account": {
+        "equity": 250000.0,
+        "cash": 180000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "fx_trend",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2500.0,
+      "requested_risk_budget": 1250.0,
+      "governed_risk_budget": 625.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_02",
+    "category": "mix_portfolio",
+    "description": "Mixed Portfolio: Holding Forex EURUSD & USDJPY, proposing Equity MSFT",
+    "conditions": {
+      "test_id": "MIX_02",
+      "category": "mix_portfolio",
+      "description": "Mixed Portfolio: Holding Forex EURUSD & USDJPY, proposing Equity MSFT",
+      "account": {
+        "equity": 300000.0,
+        "cash": 250000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "MSFT",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "410.0",
+        "proposed_stop_price": "395.0",
+        "strategy_id": "equity_breakout",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "MSFT",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 3000.0,
+      "requested_risk_budget": 1500.0,
+      "governed_risk_budget": 750.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'MSFT'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_03",
+    "category": "mix_portfolio",
+    "description": "Mixed Portfolio: Risk correlation between SPY equity and EURUSD forex (risk-on asset co-movement)",
+    "conditions": {
+      "test_id": "MIX_03",
+      "category": "mix_portfolio",
+      "description": "Mixed Portfolio: Risk correlation between SPY equity and EURUSD forex (risk-on asset co-movement)",
+      "account": {
+        "equity": 200000.0,
+        "cash": 150000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.09",
+        "proposed_stop_price": "1.085",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 500.0,
+      "raw_position_size": 0.999999999999977,
+      "executable_position_size": 1.0,
+      "actual_stop_loss_risk": 500.0000000000115,
+      "actual_total_risk": 500.0000000000115,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "governed_risk_budget"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_04",
+    "category": "mix_portfolio",
+    "description": "Mixed Multi-Asset Account in 8% Drawdown (testing equity sizing under multi-asset portfolio)",
+    "conditions": {
+      "test_id": "MIX_04",
+      "category": "mix_portfolio",
+      "description": "Mixed Multi-Asset Account in 8% Drawdown (testing equity sizing under multi-asset portfolio)",
+      "account": {
+        "equity": 184000.0,
+        "cash": 120000.0,
+        "currency": "USD",
+        "peak_equity": 200000.0
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "NVDA",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "130.0",
+        "proposed_stop_price": "120.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "NVDA",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "NVDA",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1840.0,
+      "requested_risk_budget": 920.0,
+      "governed_risk_budget": 345.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'NVDA'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_05",
+    "category": "mix_portfolio",
+    "description": "Factor limit test: USD factor exposure aggregated across US equities and USD FX pairs",
+    "conditions": {
+      "test_id": "MIX_05",
+      "category": "mix_portfolio",
+      "description": "Factor limit test: USD factor exposure aggregated across US equities and USD FX pairs",
+      "account": {
+        "equity": 200000.0,
+        "cash": 150000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "USDJPY",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "155.0",
+        "proposed_stop_price": "154.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": 6.45
+      },
+      "instrument": {
+        "symbol": "USDJPY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "USDJPY",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "USD factor exposure (+200.00) exceeds limit (2.00)",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Upstream hard rejection in module 'factor_check': USD factor exposure (+200.00) exceeds limit (2.00)",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'USDJPY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_06",
+    "category": "mix_portfolio",
+    "description": "Multi-asset portfolio heat constraint limiting new FX trade capacity",
+    "conditions": {
+      "test_id": "MIX_06",
+      "category": "mix_portfolio",
+      "description": "Multi-asset portfolio heat constraint limiting new FX trade capacity",
+      "account": {
+        "equity": 100000.0,
+        "cash": 60000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 3,
+      "trade": {
+        "symbol": "GBPUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.27",
+        "proposed_stop_price": "1.265",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "GBPUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "GBPUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1500.0,
+      "requested_risk_budget": 750.0,
+      "governed_risk_budget": 375.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'GBPUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_07",
+    "category": "mix_portfolio",
+    "description": "Multi-asset stress test with 'reject' policy when stress loss exceeds capacity",
+    "conditions": {
+      "test_id": "MIX_07",
+      "category": "mix_portfolio",
+      "description": "Multi-asset stress test with 'reject' policy when stress loss exceeds capacity",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_08",
+    "category": "mix_portfolio",
+    "description": "Mixed portfolio with elevated volatility regime on equity target",
+    "conditions": {
+      "test_id": "MIX_08",
+      "category": "mix_portfolio",
+      "description": "Mixed portfolio with elevated volatility regime on equity target",
+      "account": {
+        "equity": 150000.0,
+        "cash": 120000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "AMD",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AMD",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AMD",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1500.0,
+      "requested_risk_budget": 750.0,
+      "governed_risk_budget": 562.5,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_09",
+    "category": "mix_portfolio",
+    "description": "Cross-asset strategy allocation: momentum at 0.75x vs carry at 0.50x",
+    "conditions": {
+      "test_id": "MIX_09",
+      "category": "mix_portfolio",
+      "description": "Cross-asset strategy allocation: momentum at 0.75x vs carry at 0.50x",
+      "account": {
+        "equity": 200000.0,
+        "cash": 160000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "AUDJPY",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "100.0",
+        "proposed_stop_price": "99.0",
+        "strategy_id": "carry",
+        "pip_value_per_lot": 6.45
+      },
+      "instrument": {
+        "symbol": "AUDJPY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AUDJPY",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AUDJPY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_10",
+    "category": "mix_portfolio",
+    "description": "Full risk ledger reconciliation across multi-asset portfolio",
+    "conditions": {
+      "test_id": "MIX_10",
+      "category": "mix_portfolio",
+      "description": "Full risk ledger reconciliation across multi-asset portfolio",
+      "account": {
+        "equity": 500000.0,
+        "cash": 400000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 2,
+      "trade": {
+        "symbol": "QQQ",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "450.0",
+        "proposed_stop_price": "440.0",
+        "strategy_id": "tech_momentum",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "QQQ",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "QQQ",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 5000.0,
+      "requested_risk_budget": 2500.0,
+      "governed_risk_budget": 1250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'QQQ'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_11",
+    "category": "mix_portfolio",
+    "description": "EUR-denominated account holding US Equity and trading EURUSD",
+    "conditions": {
+      "test_id": "MIX_11",
+      "category": "mix_portfolio",
+      "description": "EUR-denominated account holding US Equity and trading EURUSD",
+      "account": {
+        "equity": 200000.0,
+        "cash": 150000.0,
+        "currency": "EUR",
+        "peak_equity": null
+      },
+      "portfolio_count": 1,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "default",
+        "pip_value_per_lot": 10.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "MIX_12",
+    "category": "mix_portfolio",
+    "description": "Mixed portfolio with remaining heat capacity allowing only partial allocation",
+    "conditions": {
+      "test_id": "MIX_12",
+      "category": "mix_portfolio",
+      "description": "Mixed portfolio with remaining heat capacity allowing only partial allocation",
+      "account": {
+        "equity": 100000.0,
+        "cash": 80000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 3,
+      "trade": {
+        "symbol": "MSFT",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "400.0",
+        "proposed_stop_price": "390.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "MSFT",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "USD factor exposure (-3.50) exceeds limit (2.00)",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Upstream hard rejection in module 'factor_check': USD factor exposure (-3.50) exceeds limit (2.00)",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'MSFT'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_01",
+    "category": "edge_account",
+    "description": "Account equity = 0.0 (Zero initial equity edge case)",
+    "conditions": {
+      "test_id": "EDGE_01",
+      "category": "edge_account",
+      "description": "Account equity = 0.0 (Zero initial equity edge case)",
+      "account": {
+        "equity": 0.0,
+        "cash": 0.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 0.0,
+      "requested_risk_budget": 0.0,
+      "governed_risk_budget": 0.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Account equity is zero with active account or open positions (data inconsistency)",
+        "Risk capital base is unavailable or non-positive.",
+        "Invalid equity state for drawdown calculation: current=$0.00, peak=$0.00",
+        "Account equity is non-positive for portfolio heat calculation.",
+        "Account equity is non-positive for correlation risk calculation.",
+        "Account equity is non-positive for factor exposure calculation.",
+        "Upstream hard rejection in module 'base_risk': Account equity is zero with active account or open positions (data inconsistency)",
+        "Upstream hard rejection in module 'conviction_allocator': Risk capital base is unavailable or non-positive.",
+        "Upstream hard rejection in module 'drawdown_governor': Invalid non-positive equity state (curr=$0.00, peak=$0.00)",
+        "Upstream hard rejection in module 'portfolio_heat': Account equity is non-positive",
+        "Upstream hard rejection in module 'correlation_check': Account equity is non-positive",
+        "Upstream hard rejection in module 'factor_check': Account equity is non-positive",
+        "Upstream hard rejection in module 'stress_test': Account equity is non-positive",
+        "Account equity snapshot (0.0) is non-positive or non-finite.",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "portfolio_heat",
+        "correlation",
+        "factor",
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_02",
+    "category": "edge_account",
+    "description": "Negative account equity = -5000.0 (Deficit account)",
+    "conditions": {
+      "test_id": "EDGE_02",
+      "category": "edge_account",
+      "description": "Negative account equity = -5000.0 (Deficit account)",
+      "account": {
+        "equity": -5000.0,
+        "cash": -5000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 0.0,
+      "requested_risk_budget": 0.0,
+      "governed_risk_budget": 0.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Account equity is negative (-5,000.00)",
+        "Risk capital base is unavailable or non-positive.",
+        "Invalid equity state for drawdown calculation: current=$-5,000.00, peak=$-5,000.00",
+        "Account equity is non-positive for portfolio heat calculation.",
+        "Account equity is non-positive for correlation risk calculation.",
+        "Account equity is non-positive for factor exposure calculation.",
+        "Upstream hard rejection in module 'base_risk': Account equity is negative (-5,000.00)",
+        "Upstream hard rejection in module 'conviction_allocator': Risk capital base is unavailable or non-positive.",
+        "Upstream hard rejection in module 'drawdown_governor': Invalid non-positive equity state (curr=$-5,000.00, peak=$-5,000.00)",
+        "Upstream hard rejection in module 'portfolio_heat': Account equity is non-positive",
+        "Upstream hard rejection in module 'correlation_check': Account equity is non-positive",
+        "Upstream hard rejection in module 'factor_check': Account equity is non-positive",
+        "Upstream hard rejection in module 'stress_test': Account equity is non-positive",
+        "Account equity snapshot (0.0) is non-positive or non-finite.",
+        "Position quantity (0.0) is zero or negative.",
+        "Factor exposure limit violation detected."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "portfolio_heat",
+        "correlation",
+        "factor",
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_03",
+    "category": "edge_account",
+    "description": "Account equity = 100,000 but Free Cash = 0.0",
+    "conditions": {
+      "test_id": "EDGE_03",
+      "category": "edge_account",
+      "description": "Account equity = 100,000 but Free Cash = 0.0",
+      "account": {
+        "equity": 100000.0,
+        "cash": 0.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 250.0,
+      "raw_position_size": 25.0,
+      "executable_position_size": 25.0,
+      "actual_stop_loss_risk": 250.0,
+      "actual_total_risk": 250.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_04",
+    "category": "edge_account",
+    "description": "Account equity = 50,000 but Free Cash = -10,000 (Margin debit)",
+    "conditions": {
+      "test_id": "EDGE_04",
+      "category": "edge_account",
+      "description": "Account equity = 50,000 but Free Cash = -10,000 (Margin debit)",
+      "account": {
+        "equity": 50000.0,
+        "cash": -10000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 125.0,
+      "raw_position_size": 12.5,
+      "executable_position_size": 12.0,
+      "actual_stop_loss_risk": 120.0,
+      "actual_total_risk": 120.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_05",
+    "category": "edge_instrument",
+    "description": "InstrumentSpec with metadata_verified = False (Must trigger hard rejection in production)",
+    "conditions": {
+      "test_id": "EDGE_05",
+      "category": "edge_instrument",
+      "description": "InstrumentSpec with metadata_verified = False (Must trigger hard rejection in production)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": false,
+        "metadata_source": "unverified_feed"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Instrument validation failed: InstrumentSpec metadata_verified is False.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Instrument validation error: InstrumentSpec metadata_verified is False.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_06",
+    "category": "edge_instrument",
+    "description": "InstrumentSpec is None passed to pipeline (Missing required metadata rejection)",
+    "conditions": {
+      "test_id": "EDGE_06",
+      "category": "edge_instrument",
+      "description": "InstrumentSpec is None passed to pipeline (Missing required metadata rejection)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": null
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Missing required explicit InstrumentSpec metadata.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Missing required explicit InstrumentSpec metadata.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_07",
+    "category": "edge_trade",
+    "description": "Invalid Stop Direction: LONG trade with Stop (160) > Entry (150)",
+    "conditions": {
+      "test_id": "EDGE_07",
+      "category": "edge_trade",
+      "description": "Invalid Stop Direction: LONG trade with Stop (160) > Entry (150)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "160.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "LONG proposed stop price (160.0) must be less than entry price (150.0).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': LONG proposed stop price (160.0) must be less than entry price (150.0).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Stop direction validation failed: LONG stop price (160.0) must be less than entry price (150.0)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_08",
+    "category": "edge_trade",
+    "description": "Invalid Stop Direction: SHORT trade with Stop (140) < Entry (150)",
+    "conditions": {
+      "test_id": "EDGE_08",
+      "category": "edge_trade",
+      "description": "Invalid Stop Direction: SHORT trade with Stop (140) < Entry (150)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "short",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "short",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "SHORT proposed stop price (140.0) must be greater than entry price (150.0).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': SHORT proposed stop price (140.0) must be greater than entry price (150.0).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Stop direction validation failed: SHORT stop price (140.0) must be greater than entry price (150.0)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_09",
+    "category": "edge_trade",
+    "description": "Stop Price exactly equal to Entry Price (150.0 == 150.0)",
+    "conditions": {
+      "test_id": "EDGE_09",
+      "category": "edge_trade",
+      "description": "Stop Price exactly equal to Entry Price (150.0 == 150.0)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "150.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "LONG proposed stop price (150.0) must be less than entry price (150.0).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': LONG proposed stop price (150.0) must be less than entry price (150.0).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Stop direction validation failed: LONG stop price (150.0) must be less than entry price (150.0)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_10",
+    "category": "edge_trade",
+    "description": "Trade entry price = 0.0",
+    "conditions": {
+      "test_id": "EDGE_10",
+      "category": "edge_trade",
+      "description": "Trade entry price = 0.0",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "0.0",
+        "proposed_stop_price": "-10.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Trade candidate entry_price (0.0) must be > 0 and finite.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Trade candidate entry_price (0.0) must be > 0 and finite.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid entry price (0.0)",
+        "Invalid stop price (-10.0)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_11",
+    "category": "edge_trade",
+    "description": "Trade entry price = -50.0",
+    "conditions": {
+      "test_id": "EDGE_11",
+      "category": "edge_trade",
+      "description": "Trade entry price = -50.0",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "-50.0",
+        "proposed_stop_price": "-60.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Trade candidate entry_price (-50.0) must be > 0 and finite.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Trade candidate entry_price (-50.0) must be > 0 and finite.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid entry price (-50.0)",
+        "Invalid stop price (-60.0)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_12",
+    "category": "edge_trade",
+    "description": "Forex trade candidate with pip_value_per_lot = None and pip_value_currency = None",
+    "conditions": {
+      "test_id": "EDGE_12",
+      "category": "edge_trade",
+      "description": "Forex trade candidate with pip_value_per_lot = None and pip_value_currency = None",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Instrument validation failed: valuation_method 'pip_value_per_lot' requires trade.pip_value_per_lot > 0 (got None).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Instrument validation error: valuation_method 'pip_value_per_lot' requires trade.pip_value_per_lot > 0 (got None).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_13",
+    "category": "edge_trade",
+    "description": "Forex trade candidate with pip_value_per_lot = 0.0",
+    "conditions": {
+      "test_id": "EDGE_13",
+      "category": "edge_trade",
+      "description": "Forex trade candidate with pip_value_per_lot = 0.0",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURUSD",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "1.085",
+        "proposed_stop_price": "1.08",
+        "strategy_id": "default",
+        "pip_value_per_lot": 0.0
+      },
+      "instrument": {
+        "symbol": "EURUSD",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURUSD",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Instrument validation failed: valuation_method 'pip_value_per_lot' requires trade.pip_value_per_lot > 0 (got 0.0).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Instrument validation error: valuation_method 'pip_value_per_lot' requires trade.pip_value_per_lot > 0 (got 0.0).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURUSD'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_14",
+    "category": "edge_config",
+    "description": "CapitalManagementConfig with base_risk_pct = 0.0 (Zero base risk budget)",
+    "conditions": {
+      "test_id": "EDGE_14",
+      "category": "edge_config",
+      "description": "CapitalManagementConfig with base_risk_pct = 0.0 (Zero base risk budget)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 0.0,
+      "requested_risk_budget": 0.0,
+      "governed_risk_budget": 0.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Cannot calculate position size with permitted_risk_budget=$0.00 or risk_per_unit=$10.0000",
+        "Upstream hard rejection in module 'position_sizing': Cannot calculate position size with permitted_risk_budget=$0.00 or risk_per_unit=$10.0000",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_18",
+    "category": "edge_instrument",
+    "description": "Exotic Forex pair EURTRY with TRY pip value currency and no EURTRY or TRYUSD market rate",
+    "conditions": {
+      "test_id": "EDGE_18",
+      "category": "edge_instrument",
+      "description": "Exotic Forex pair EURTRY with TRY pip value currency and no EURTRY or TRYUSD market rate",
+      "account": {
+        "equity": 50000.0,
+        "cash": 50000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "EURTRY",
+        "asset_class": "forex",
+        "side": "long",
+        "entry_price": "35.0",
+        "proposed_stop_price": "34.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": 300.0
+      },
+      "instrument": {
+        "symbol": "EURTRY",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "EURTRY",
+      "side": "long",
+      "asset_class": "forex",
+      "base_risk_budget": 500.0,
+      "requested_risk_budget": 250.0,
+      "governed_risk_budget": 125.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Missing required FX conversion rate from TRY to USD",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Missing required FX conversion rate from TRY to USD",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'EURTRY'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_19",
+    "category": "edge_trade",
+    "description": "Trade Candidate with float('nan') entry price",
+    "conditions": {
+      "test_id": "EDGE_19",
+      "category": "edge_trade",
+      "description": "Trade Candidate with float('nan') entry price",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "nan",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Trade candidate entry_price (nan) must be > 0 and finite.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Trade candidate entry_price (nan) must be > 0 and finite.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid entry price (nan)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_20",
+    "category": "edge_trade",
+    "description": "Trade Candidate with float('inf') proposed stop price",
+    "conditions": {
+      "test_id": "EDGE_20",
+      "category": "edge_trade",
+      "description": "Trade Candidate with float('inf') proposed stop price",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "inf",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Proposed stop price (inf) must be > 0 and finite.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Proposed stop price (inf) must be > 0 and finite.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Stop direction validation failed: LONG stop price (inf) must be less than entry price (150.0)",
+        "Invalid stop price (inf)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_21",
+    "category": "edge_mismatch",
+    "description": "Mismatched asset_class: TradeCandidate asset_class='equity' vs InstrumentSpec asset_class='FOREX'",
+    "conditions": {
+      "test_id": "EDGE_21",
+      "category": "edge_mismatch",
+      "description": "Mismatched asset_class: TradeCandidate asset_class='equity' vs InstrumentSpec asset_class='FOREX'",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "FOREX",
+        "valuation_method": "pip_value_per_lot",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Instrument validation failed: valuation_method 'pip_value_per_lot' requires pip_size > 0 (got None).",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Instrument validation error: valuation_method 'pip_value_per_lot' requires pip_size > 0 (got None).",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Asset class mismatch: trade (equity) vs instrument (FOREX)",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_22",
+    "category": "edge_trade",
+    "description": "Invalid trade side 'buy_hold'",
+    "conditions": {
+      "test_id": "EDGE_22",
+      "category": "edge_trade",
+      "description": "Invalid trade side 'buy_hold'",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "buy_hold",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "buy_hold",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid trade side 'buy_hold'. Must be 'long' or 'short'.",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Invalid trade side 'buy_hold'. Must be 'long' or 'short'.",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Stop direction validation failed: Invalid trade side 'buy_hold'. Must be 'long' or 'short'.",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_23",
+    "category": "edge_instrument",
+    "description": "InstrumentSpec invalid bounds: min_quantity=1000 > max_quantity=100",
+    "conditions": {
+      "test_id": "EDGE_23",
+      "category": "edge_instrument",
+      "description": "InstrumentSpec invalid bounds: min_quantity=1000 > max_quantity=100",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 1000.0,
+      "requested_risk_budget": 500.0,
+      "governed_risk_budget": 250.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Instrument validation failed: Invalid max_quantity (100.0) relative to min_quantity (1000.0)",
+        "Invalid monetary risk per unit or missing InstrumentSpec in StressTestModule.",
+        "Upstream hard rejection in module 'stop_risk': Instrument validation error: Invalid max_quantity (100.0) relative to min_quantity (1000.0)",
+        "Upstream hard rejection in module 'stress_test': Invalid monetary risk per unit or missing InstrumentSpec",
+        "Invalid stop distance (0.0). Must be > 0.",
+        "Position quantity (0.0) is zero or negative.",
+        "Monetary risk per unit (0.0) must be > 0."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_24",
+    "category": "edge_account",
+    "description": "Ultra-large institutional equity = $10,000,000,000 (10B USD)",
+    "conditions": {
+      "test_id": "EDGE_24",
+      "category": "edge_account",
+      "description": "Ultra-large institutional equity = $10,000,000,000 (10B USD)",
+      "account": {
+        "equity": 10000000000.0,
+        "cash": 8000000000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": true,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 100000000.0,
+      "requested_risk_budget": 50000000.0,
+      "governed_risk_budget": 25000000.0,
+      "permitted_risk_budget": 1000000.0,
+      "raw_position_size": 100000.0,
+      "executable_position_size": 100000.0,
+      "actual_stop_loss_risk": 1000000.0,
+      "actual_total_risk": 1000000.0,
+      "rejection_reasons": [],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50",
+        "Stress capacity ($1,000,000.00) constrained permitted risk from $25,000,000.00 to $1,000,000.00"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_25",
+    "category": "edge_account",
+    "description": "Microscopic account equity = $0.05",
+    "conditions": {
+      "test_id": "EDGE_25",
+      "category": "edge_account",
+      "description": "Microscopic account equity = $0.05",
+      "account": {
+        "equity": 0.05,
+        "cash": 0.05,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 0.0005,
+      "requested_risk_budget": 0.00025,
+      "governed_risk_budget": 0.000125,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Stress loss ($0.00) exceeds maximum stress limit ($0.00)",
+        "Upstream hard rejection in module 'stress_test': Stress loss ($0.00) exceeds maximum stress limit ($0.00)",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "stress"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_26",
+    "category": "edge_portfolio",
+    "description": "Massive portfolio with 50 existing positions ($5,000 aggregated heat)",
+    "conditions": {
+      "test_id": "EDGE_26",
+      "category": "edge_portfolio",
+      "description": "Massive portfolio with 50 existing positions ($5,000 aggregated heat)",
+      "account": {
+        "equity": 200000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 50,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "outcome": {
+      "approved": false,
+      "symbol": "AAPL",
+      "side": "long",
+      "asset_class": "equity",
+      "base_risk_budget": 2000.0,
+      "requested_risk_budget": 1000.0,
+      "governed_risk_budget": 500.0,
+      "permitted_risk_budget": 0.0,
+      "raw_position_size": 0.0,
+      "executable_position_size": 0.0,
+      "actual_stop_loss_risk": 0.0,
+      "actual_total_risk": 0.0,
+      "rejection_reasons": [
+        "Invalid or missing correlation matrix: Missing correlation matrix data",
+        "Upstream hard rejection in module 'correlation_check': Correlation matrix error: Missing correlation matrix data",
+        "Position quantity (0.0) is zero or negative."
+      ],
+      "warnings": [
+        "Missing volatility metrics for 'AAPL'; applying conservative multiplier 0.50"
+      ],
+      "binding_constraints": [
+        "correlation",
+        "factor"
+      ]
+    },
+    "status": "COMPLETED_WITHOUT_EXCEPTION"
+  }
+]

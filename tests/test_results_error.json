@@ -1,0 +1,113 @@
+[
+  {
+    "test_id": "EDGE_15",
+    "category": "edge_config",
+    "description": "CapitalManagementConfig with negative base_risk_pct = -0.01 (Raises ValueError on init)",
+    "conditions": {
+      "test_id": "EDGE_15",
+      "category": "edge_config",
+      "description": "CapitalManagementConfig with negative base_risk_pct = -0.01 (Raises ValueError on init)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "error_type": "ValueError",
+    "error_message": "base_risk_pct (-0.01) must be between 0.0 and 1.0",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 2130, in run_all_tests\n    config = tc[\"config_factory\"]()\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 1887, in <lambda>\n    \"config_factory\": lambda: CapitalManagementConfig(base_risk_pct=-0.01),\n                              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 28, in __init__\n  File \"/Users/alonglry/Desktop/stock/capital_management/models/config.py\", line 196, in __post_init__\n    raise ValueError(f\"base_risk_pct ({self.base_risk_pct}) must be between 0.0 and 1.0\")\nValueError: base_risk_pct (-0.01) must be between 0.0 and 1.0\n",
+    "status": "FAILED_WITH_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_16",
+    "category": "edge_config",
+    "description": "CapitalManagementConfig with excessive base_risk_pct = 1.5 (150% risk, raises ValueError on init)",
+    "conditions": {
+      "test_id": "EDGE_16",
+      "category": "edge_config",
+      "description": "CapitalManagementConfig with excessive base_risk_pct = 1.5 (150% risk, raises ValueError on init)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "error_type": "ValueError",
+    "error_message": "base_risk_pct (1.5) must be between 0.0 and 1.0",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 2130, in run_all_tests\n    config = tc[\"config_factory\"]()\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 1900, in <lambda>\n    \"config_factory\": lambda: CapitalManagementConfig(base_risk_pct=1.5),\n                              ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 28, in __init__\n  File \"/Users/alonglry/Desktop/stock/capital_management/models/config.py\", line 196, in __post_init__\n    raise ValueError(f\"base_risk_pct ({self.base_risk_pct}) must be between 0.0 and 1.0\")\nValueError: base_risk_pct (1.5) must be between 0.0 and 1.0\n",
+    "status": "FAILED_WITH_EXCEPTION"
+  },
+  {
+    "test_id": "EDGE_17",
+    "category": "edge_config",
+    "description": "Conviction config inverted min > max (min=2.0, max=0.5 -> ValueError on init)",
+    "conditions": {
+      "test_id": "EDGE_17",
+      "category": "edge_config",
+      "description": "Conviction config inverted min > max (min=2.0, max=0.5 -> ValueError on init)",
+      "account": {
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "currency": "USD",
+        "peak_equity": null
+      },
+      "portfolio_count": 0,
+      "trade": {
+        "symbol": "AAPL",
+        "asset_class": "equity",
+        "side": "long",
+        "entry_price": "150.0",
+        "proposed_stop_price": "140.0",
+        "strategy_id": "default",
+        "pip_value_per_lot": null
+      },
+      "instrument": {
+        "symbol": "AAPL",
+        "asset_class": "EQUITY",
+        "valuation_method": "contract_point_value",
+        "metadata_verified": true,
+        "metadata_source": "test_runner"
+      }
+    },
+    "error_type": "ValueError",
+    "error_message": "Invalid conviction multipliers: min=2.0, max=0.5",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 2130, in run_all_tests\n    config = tc[\"config_factory\"]()\n  File \"/Users/alonglry/Desktop/stock/capital_management/tests/run_comprehensive_tests.py\", line 1914, in <lambda>\n    conviction_risk=ConvictionRiskConfig(min_multiplier=2.0, max_multiplier=0.5)\n  File \"<string>\", line 9, in __init__\n  File \"/Users/alonglry/Desktop/stock/capital_management/models/config.py\", line 61, in __post_init__\n    raise ValueError(f\"Invalid conviction multipliers: min={self.min_multiplier}, max={self.max_multiplier}\")\nValueError: Invalid conviction multipliers: min=2.0, max=0.5\n",
+    "status": "FAILED_WITH_EXCEPTION"
+  }
+]

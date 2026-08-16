@@ -20,7 +20,7 @@ from capital_management.pipeline import CapitalManagementPipeline
 
 
 def main():
-    account = AccountState(equity=None, cash=80000.0, currency="USD")
+    account = AccountState(equity=100000.0, cash=80000.0, currency="USD")
     trade = TradeCandidate(
         symbol="AAPL",
         asset_class="equity",
