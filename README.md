@@ -44,37 +44,35 @@ The engine uses explicit risk budgets and formal ledgers:
 
 ## 3. Instrument Metadata & Verification
 
-`InstrumentSpec` defines contract specifications, sizing mechanics, valuation models, and currency conversions across asset classes with strict verification:
+`InstrumentSpec` defines contract specifications, sizing mechanics, valuation models, and currency conversions across asset classes with strict verification.
 
-### Key Purposes & Examples
+### 1. Asset Mechanics & Valuation Models
+- Standardizes pricing mechanics and valuation methods across asset classes (`EQUITY` vs. `FOREX`).
+- **Equity Example (`AAPL`)**: Sized in shares (`contract_size = 1.0`, `quantity_increment = 1.0`, `point_value = 1.0`). Uses `contract_point_value` valuation where a $1.00 price move equals $1.00 per share.
+- **Forex Example (`EURUSD` / `USDJPY`)**: Sized in lots (`contract_size = 100,000` base units, `quantity_increment = 0.01` lot). Uses `pip_value_per_lot` valuation (e.g., EURUSD with `pip_size = 0.0001` and `pip_value_per_lot = 10.00 USD`; USDJPY with `pip_size = 0.01` and `pip_value_per_lot = 1,000 JPY`).
 
-1. **Asset Mechanics & Valuation Models**
-   - Standardizes pricing mechanics and valuation methods across asset types (`EQUITY` vs. `FOREX`).
-   - *Equity Example (`AAPL`)*: Sized in shares (`contract_size = 1.0`, `quantity_increment = 1.0`, `point_value = 1.0`). Uses `contract_point_value` valuation where a $1.00 move equals $1.00 per share.
-   - *Forex Example (`EUR/USD` or `USD/JPY`)*: Sized in lots (`contract_size = 100,000` base units, `quantity_increment = 0.01` lot). Uses `pip_value_per_lot` valuation (e.g. EUR/USD with `pip_size = 0.0001` and `pip_value_per_lot = $10.00`; USD/JPY with `pip_size = 0.01` and `pip_value_per_lot = ¥1,000`).
+### 2. Risk & Monetary Loss per Unit Calculation
+- `calculate_monetary_risk_per_unit`: Translates entry vs. stop-loss price distance into exact risk in account currency.
+- `calculate_loss_for_price_move`: Computes monetary loss for stress tests and gap scenarios.
+- **Equity Stop-Loss Example**: Buying TSLA at $200.00 with stop-loss at $190.00 ($10.00 distance) produces $10.00 x 1.0 = $10.00/share risk.
+- **Forex Cross-Pair Example**: Trading EURGBP on a USD account with a 50-pip stop (£500.00/lot). The instrument layer uses the GBPUSD rate (e.g., 1.30) to compute $650.00/lot risk in USD.
+- **Stress & Gap Loss Example**: Simulates an overnight -5% gap to verify that tail risk does not breach maximum allowable portfolio loss.
 
-2. **Risk & Monetary Loss per Unit Calculation**
-   - `calculate_monetary_risk_per_unit`: Translates entry vs. stop-loss price distance into exact risk in account currency.
-   - `calculate_loss_for_price_move`: Computes monetary loss for stress tests and gap scenarios.
-   - *Equity Stop-Loss Example*: Buying TSLA at $200.00 with stop-loss at $190.00 ($10.00 distance) produces $\$10.00 \times 1.0 = \$10.00/\text{share}$ risk.
-   - *Forex Cross-Pair Example*: Trading EUR/GBP on a USD account with a 50-pip stop ($£500.00/\text{lot}$). Instrument layer uses GBP/USD rate (e.g. 1.30) to compute $\$650.00/\text{lot}$ USD risk.
-   - *Stress & Gap Loss Example*: Simulates an overnight $-5\%$ earnings gap to ensure tail-risk does not breach max allowable portfolio loss.
+### 3. Discrete Step Position Sizing
+- Enforces execution bounds (`min_quantity`, `max_quantity`) and step granularity (`quantity_increment`) to prevent non-tradable sizes or exchange order rejections.
+- **Forex Lot Sizing Example**: With a $1,250 risk budget and $800 risk per standard lot, theoretical size is 1.5625 lots. With `quantity_increment = 0.01`, the solver rounds down to 1.56 lots.
+- **Equity Share Sizing Example**: With a $500 risk budget and $7.35 risk per share, theoretical size is 68.027 shares. The solver rounds down to 68 shares (`quantity_increment = 1.0`).
 
-3. **Discrete Step Position Sizing**
-   - Enforces execution bounds (`min_quantity`, `max_quantity`) and step granularity (`quantity_increment`) to avoid fractional order rejections or non-tradable sizes.
-   - *Forex Lot Sizing Example*: With a $1,250 risk budget and $800 risk per standard lot, theoretical size is $1.5625$ lots. With `quantity_increment = 0.01`, the solver safely steps down to **1.56 lots**.
-   - *Equity Whole Share Example*: With a $500 risk budget and $7.35 risk per share, theoretical size is $68.027$ shares. Solver outputs **68 shares** (`quantity_increment = 1.0`).
+### 4. FX & Currency Conversion Layer
+- `get_fx_conversion`: Converts cross-currency risk, profit/loss, and margin into the account settlement currency (direct, inverse, or triangular lookup).
+- `calculate_notional_value`: Calculates canonical total position notional exposure for leverage and portfolio heat checks.
+- **Portfolio Heat Example**: On a USD account with a $200,000 heat limit, opening 1.5 lots of EURUSD (150,000 EUR base notional at EURUSD = 1.08) computes to $162,000 USD notional, verifying it fits within portfolio limits.
+- **Inverse Conversion Example**: For USDCAD on a USD account, CAD-denominated returns are converted back to USD using market rates.
 
-4. **FX & Currency Conversion Layer**
-   - `get_fx_conversion`: Converts cross-currency risk, profit/loss, and margin into account settlement currency (direct, inverse, or triangular lookup).
-   - `calculate_notional_value`: Calculates canonical total position notional exposure for leverage and portfolio heat checks.
-   - *Portfolio Heat / Exposure Example*: On a USD account with a $200,000 max heat limit, opening 1.5 lots of EUR/USD (€150,000 base notional at EUR/USD = 1.08) computes to **$162,000 USD notional**, verifying heat limits.
-   - *Inverse Conversion Example*: For USD/CAD on a USD account, quote currency CAD returns are inverted back to USD using entry/market rates.
-
-5. **Safety Gate & Metadata Verification**
-   - `validate_for_capital_management`: Validates completeness of instrument specifications prior to pipeline execution.
-   - *Default Metadata Rejection*: Rejects trades if `metadata_verified == False` in production mode to prevent unverified mock/default parameters from causing dangerous mis-sizing.
-   - *Asset Class / Symbol Mismatch*: Fails immediately if an order (e.g., EUR/USD) is accidentally matched with Equity default specs (`contract_size = 1.0` instead of `100,000`), preventing orders from executing at $1/100,000\text{th}$ of intended exposure.
+### 5. Safety Gate & Metadata Verification
+- `validate_for_capital_management`: Validates completeness of instrument specifications prior to pipeline execution.
+- **Default Metadata Rejection**: Rejects trades if `metadata_verified == False` in production mode to prevent unverified default parameters from causing dangerous mis-sizing.
+- **Asset Class / Symbol Mismatch**: Rejects trades if an order (e.g., EURUSD) is paired with equity default specs (`contract_size = 1.0` instead of `100,000`), preventing orders from executing at 1/100,000th of intended exposure.
 
 ---
 
