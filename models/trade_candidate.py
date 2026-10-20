@@ -66,6 +66,48 @@ class TradeCandidate:
     threshold_long: Optional[Any] = None
     slope_short: Optional[Any] = None
     threshold_short: Optional[Any] = None
+    conviction_ratio: float = 0.0
+    stop_distance_pct: float = 1.0
+
+    def __post_init__(self) -> None:
+        """Automatically computes conviction_ratio and stop_distance_pct if not explicitly set."""
+        if self.conviction_ratio == 0.0:
+            self.conviction_ratio = self._calculate_conviction_ratio()
+        if self.stop_distance_pct == 1.0:
+            self.stop_distance_pct = self.resolve_stop_distance_pct(atr=self.atr)
+
+    @property
+    def ranking_key(self) -> Tuple[float, float, str]:
+        """Canonical deterministic ranking key for candidate prioritization: (-conviction_ratio, stop_dist_pct, symbol)."""
+        return (-self.conviction_ratio, self.stop_distance_pct, self.symbol)
+
+    def _calculate_conviction_ratio(self) -> float:
+        """Calculates normalized conviction ratio based on trade side and slope/threshold."""
+        side_clean = (self.side or "").lower()
+
+        def _to_float(val: Any, default: float) -> float:
+            if val is None:
+                return default
+            # Handle pandas Series or list/array
+            if hasattr(val, "iloc"):
+                val = val.iloc[0] if len(val) > 0 else default
+            elif hasattr(val, "__iter__") and not isinstance(val, (str, bytes)):
+                val = next(iter(val), default)
+            try:
+                f = float(val)
+                return f if math.isfinite(f) else default
+            except (ValueError, TypeError):
+                return default
+
+        if side_clean == "long":
+            s = _to_float(self.slope_long, 0.0)
+            t = _to_float(self.threshold_long, 1.0)
+            return (s / t) if t > 0 else 0.0
+        elif side_clean == "short":
+            s = _to_float(self.slope_short, 0.0)
+            t = _to_float(self.threshold_short, 1.0)
+            return (s / t) if t > 0 else 0.0
+        return 0.0
 
     def validate_stop_direction(self, stop_price: Optional[float] = None) -> Tuple[bool, str]:
         """
@@ -89,6 +131,26 @@ class TradeCandidate:
             return False, f"Invalid trade side '{self.side}'. Must be 'long' or 'short'."
 
         return True, "Valid stop direction"
+
+    def resolve_stop_distance_pct(
+        self,
+        atr: Optional[float] = None,
+        config: Optional[Any] = None,
+    ) -> float:
+        """Resolves effective stop distance as a percentage of entry price.
+
+        Args:
+            atr: Explicit ATR value (falls back to self.atr if None).
+            config: CapitalManagementConfig instance.
+
+        Returns:
+            float: Stop distance divided by entry_price (defaults to 1.0 on failure).
+        """
+        try:
+            _, _, stop_distance = resolve_effective_stop_price(self, atr=atr, config=config)
+            return (stop_distance / self.entry_price) if self.entry_price > 0 else 1.0
+        except Exception:
+            return 1.0
 
 
 def resolve_effective_stop_price(
