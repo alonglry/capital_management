@@ -339,3 +339,32 @@ class InstrumentSpec:
             pip_value_currency=pip_value_currency,
             fx_rates=fx_rates,
         )
+
+    def calculate_realized_pnl(
+        self,
+        entry_price: float,
+        exit_price: float,
+        quantity: float,
+        side: str = "long",
+    ) -> float:
+        """Calculates realized trade PnL based on instrument asset class.
+
+        Args:
+            entry_price: The entry price of the position.
+            exit_price: The exit price of the position.
+            quantity: The position quantity.
+            side: Position direction ("long" or "short").
+
+        Returns:
+            The realized PnL of the position.
+        """
+        if self.asset_class == "FOREX":
+            pip_size = self.pip_size if self.pip_size is not None and self.pip_size > 0 else 0.0001
+            contract_size = self.contract_size if self.contract_size is not None else 100_000.0
+            pip_diff = (exit_price - entry_price) / pip_size if side.lower() == "long" else (entry_price - exit_price) / pip_size
+            return pip_diff * (pip_size * contract_size) * quantity
+        else:
+            pt_val = self.point_value if self.point_value is not None else 1.0
+            price_diff = (exit_price - entry_price) if side.lower() == "long" else (entry_price - exit_price)
+            return price_diff * quantity * pt_val
+
